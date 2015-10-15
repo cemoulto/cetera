@@ -399,22 +399,22 @@ Returns a list of domain specific categories, tags, and metadata.
 
         {
           "categories": [
-            "finance",
-            "permits & licenses",
-            "public assets",
-            "public safety",
-            "public services",
-            "transportation"
+            {"facet": "finance", "count": 470},
+            {"facet": "permits & licenses", "count": 245},
+            {"facet": "public assets", "count": 123},
+            {"facet": "public safety", "count": 99},
+            {"facet": "public services", "count": 42},
+            {"facet": "transportation" "count": 1}
           ],
           "tags": [
-            "youth",
-            "wellbeing",
-            "reportcard"
+            {"facet": "youth", "count": 42},
+            {"facet": "wellbeing", "count": 21},
+            {"facet": "reportcard" "count": 7}
           ],
           "metadata": [
-            "data-freshness_scope",
-            "data-freshness_time-period",
-            "data-freshness_update-frequency"
+            {"facet": "data-freshness_scope", "count": 25},
+            {"facet": "data-freshness_time-period", "count": 5},
+            {"facet": "data-freshness_update-frequency" "count": 1}
           ]
         }
 
@@ -431,10 +431,9 @@ Returns a list of domain specific metadata facet values.
 
         {
           "data-freshness_scope": [
-            "",
-            "all existing and proposed access points",
-            "all existing stations owned by the city of seattle",
-            "all public datasets, filtered views, and visualizations",
-            "all public parking lots in seattle"
+            {"value": "all existing and proposed access points", "count": 59},
+            {"value": "all existing stations owned by the city of seattle", "count": 48},
+            {"value": "all public datasets, filtered views, and visualizations", "count": 37},
+            {"value": "all public parking lots in seattle" "count": 26}
           ]
         }
