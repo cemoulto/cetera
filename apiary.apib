@@ -59,11 +59,11 @@ The production API endpoint for the Labs version of this API is `https://api.us.
                     "tags" : ["transportation"],
                     "domain_categories": ["Things that move"],
                     "domain_tags" : ["planes", "trains", "automobiles"],
-                    "domain_metadata" : {
-                      "data-freshness_scope": "daily",
-                      "manufacturing_vendor" : "Boeing",
-                      "manufacturing_plant-location" : "Renton"
-                    }
+                    "domain_metadata" : [
+                      {"key": "data-freshness_scope", "value": "daily"},
+                      {"key": "manufacturing_vendor", "value": "Boeing"},
+                      {"key": "manufacturing_plant-location", "value": "Renton"}
+                    ]
                   },
                   "metadata" : { "domain" : "data.seattle.gov" },
                   "link" : "https://data.seattle.gov/ux/dataset/ekqi-b8f3"
