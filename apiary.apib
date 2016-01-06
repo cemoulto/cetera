@@ -12,7 +12,9 @@ All calls return a JSON object containing a list of datasets, visualizations, an
 
 Datasets and other assets are distinguished by the `type` field.
 
-With the exception of the additional `type` field, the objects in the `resources` field are unaltered from their representation in whatever owns their truth.
+Multiple components of Socrata's technology stack are represented in the catalog responses. Until the migration from [SODA 2.0 to 2.1](https://dev.socrata.com/changelog/2015/11/25/soda-api-versioning.html) is completed it is necessary to differentiate some requests between the previous (obe) and the current (nbe) stacks. When constructing SODA 2.1 API requests please take care to select the `nbe_fxf` if available, as this is the newer and more performant stack.
+
+With the exception of the additional `type`, `obe_fxf`, and `nbe_fxf` fields, the objects in the `resources` field are unaltered from their representation in whatever owns their truth.
 
 The production API endpoint for the Labs version of this API is `https://api.us.socrata.com/api/catalog/v1`. For example, to query for datasets categorized as `Crime`, you could use the following query:
 
@@ -35,6 +37,8 @@ The production API endpoint for the Labs version of this API is `https://api.us.
                     "updatedAt" : "2015-02-19T20:01:56.000Z",
                     "type" : "dataset",
                     "id" : "ekqi-b8f3",
+                    "obe_fxf" : "ekqi-b8f3",
+                    "nbe_fxf" : "3f8b-iqke",
                     "columns" :
                       {
                         "mts_trail_west_of_i_90_bridge_total" :
@@ -224,8 +228,8 @@ The full search API is detailed here, with some additional options such as `tags
 + Parameters
     + domains (optional, list[string], `cname1,cname2`) ... A comma separated list of cnames. Returns results restricted to only the domains in the list. When not present, searches the entire catalog.
     + search_context (optional, string, `data.seattle.gov`) ... Specifies the domain from where this query was issues and for which categories will be used in search.
-    + categories (optional, list[string], `category1,category2`) ... A comma separated list of categories. Return results restricted to only the categories specified (OR). When not present, searches all categories.
-    + tags (optional, list[string], `tag1,tag2`) ... A comma separated list of tags. Return results restricted to only the tags specified (OR). When not present, searches all tags.
+    + categories (optional, string, `category1`) ... A single category. Multiple categories may be selected by including multiple instances of this query string parameter. May also be formatted `categories[]=category2`. Return results restricted to only the categories specified (OR). When not present, searches all categories.
+    + tags (optional, string, `tag1`) ... A single tag. Multiple tags may be selected by including multiple instances of this query string parameter. May also be formatted `tags[]=tag2`. Return results restricted to only the tags specified (OR). When not present, searches all tags.
     + q (optional, string, `potholes`) ... A string for full text search
     + offset (optional, number, `23`) ... Initial starting point for paging (0 by default)
     + limit (optional, number, `1000`) ... Number of results to return (100 default/max)
