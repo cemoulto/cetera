@@ -397,43 +397,46 @@ Returns a list of domain specific categories, tags, and metadata.
 
 + Response 200 (application/json)
 
-        {
-          "categories": [
-            {"facet": "finance", "count": 470},
-            {"facet": "permits & licenses", "count": 245},
-            {"facet": "public assets", "count": 123},
-            {"facet": "public safety", "count": 99},
-            {"facet": "public services", "count": 42},
-            {"facet": "transportation" "count": 1}
-          ],
-          "tags": [
-            {"facet": "youth", "count": 42},
-            {"facet": "wellbeing", "count": 21},
-            {"facet": "reportcard" "count": 7}
-          ],
-          "metadata": [
-            {"facet": "data-freshness_scope", "count": 25},
-            {"facet": "data-freshness_time-period", "count": 5},
-            {"facet": "data-freshness_update-frequency" "count": 1}
-          ]
-        }
-
-## Listing custom metadata values [/catalog/v1/domains/{domain}/facets/{facet}]
-Returns a list of domain specific metadata facet values.
-
-### Return facet values [GET]
-
-+ Parameters
-    + domain: `data.seattle.gov` (string) - The domain name
-    + facet: `data-freshness_scope` (string) - The metadata key name
-
-+ Response 200 (application/json)
-
-        {
-          "data-freshness_scope": [
-            {"value": "all existing and proposed access points", "count": 59},
-            {"value": "all existing stations owned by the city of seattle", "count": 48},
-            {"value": "all public datasets, filtered views, and visualizations", "count": 37},
-            {"value": "all public parking lots in seattle" "count": 26}
-          ]
-        }
+        [
+          {
+            "facet": "categories",
+            "count": 980,
+            "values": [
+              {"value": "finance", "count": 470},
+              {"value": "permits & licenses", "count": 245},
+              {"value": "public assets", "count": 123},
+              {"value": "public safety", "count": 99},
+              {"value": "public services", "count": 42},
+              {"value": "transportation" "count": 1}
+            ]
+          },
+          {
+            "facet": "tags",
+            "count": 70,
+            "values": [
+              {"value": "youth", "count": 42},
+              {"value": "wellbeing", "count": 21},
+              {"value": "reportcard" "count": 7}
+            ]
+          },
+          {
+            "facet": "data-freshness_scope",
+            "count": 170,
+            "values": [
+              {"value": "all existing and proposed access points", "count": 59},
+              {"value": "all existing stations owned by the city of seattle", "count": 48},
+              {"value": "all public datasets, filtered views, and visualizations", "count": 37},
+              {"value": "all public parking lots in seattle" "count": 26}
+            ]
+          },
+          {
+            "facet": "data-freshness_time-period",
+            "count": 5,
+            "values: [ ... ]
+          },
+          {
+            "facet": "data-freshness_update-frequency",
+            "count": 1,
+            "values": [ ... ]
+          }
+        ]
