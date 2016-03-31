@@ -6,12 +6,13 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.slf4j.LoggerFactory
 
 import com.socrata.cetera._
+import com.socrata.cetera.authentication.CoreClient
 import com.socrata.cetera.search.DomainAggregations._
 import com.socrata.cetera.search.DomainFilters._
 import com.socrata.cetera.types.{Domain, DomainCnameFieldType, QueryType}
 import com.socrata.cetera.util.{JsonDecodeException, LogHelper}
 
-class DomainClient(val esClient: ElasticSearchClient, val indexAliasName: String) {
+class DomainClient(val esClient: ElasticSearchClient, val coreClient: CoreClient, val indexAliasName: String) {
   val logger = LoggerFactory.getLogger(getClass)
 
   def fetch(id: Int): Option[Domain] = {
@@ -22,12 +23,7 @@ class DomainClient(val esClient: ElasticSearchClient, val indexAliasName: String
     Domain(res.getSourceAsString)
   }
 
-  def find(cname: String): (Option[Domain], Long) = {
-    val (domains, timing) = find(Set(cname))
-    (domains.headOption, timing)
-  }
-
-  def find(cnames: Set[String]): (Set[Domain], Long) = {
+  private def find(cnames: Set[String]): (Set[Domain], Long) = {
     val query = QueryBuilders.termsQuery(DomainCnameFieldType.rawFieldName, cnames.toList: _*)
 
     val search = esClient.client.prepareSearch(indexAliasName).setTypes(esDomainType)
@@ -50,12 +46,27 @@ class DomainClient(val esClient: ElasticSearchClient, val indexAliasName: String
     (domains, timing)
   }
 
+  private def filterByLockdownStatus(searchContextCname: Option[String],
+                             domains: Set[Domain],
+                             cookie: Option[String]): Set[Domain] = {
+    val lockedDownDomains = domains.filter(d => d.lockedDown || d.apiLockedDown)
+    if (lockedDownDomains.isEmpty) {
+      domains
+    } else {
+      val loggedInOnTarget = searchContextCname.exists(coreClient.isCookieValid(_, cookie))
+      if (loggedInOnTarget) domains else domains -- lockedDownDomains
+    }
+  }
+
   // if domain cname filter is provided limit to that scope, otherwise default to publicly visible domains
-  def findRelevantDomains(searchContextCname: Option[String], domainCnames: Set[String]): (Set[Domain], Long) = {
-    searchContextCname.foldLeft(domainCnames) { (b, x) => b + x } match {
+  def findRelevantDomains(searchContextCname: Option[String],
+                          domainCnames: Set[String],
+                          cookie: Option[String]): (Set[Domain], Long) = {
+    val (domains, timing) = searchContextCname.foldLeft(domainCnames) { (b, x) => b + x } match {
       case cs: Set[String] if cs.nonEmpty => find(cs)
       case _ => customerDomainSearch
     }
+    (filterByLockdownStatus(searchContextCname, domains, cookie), timing)
   }
 
   // TODO: handle unlimited domain count with aggregation or scan+scroll query

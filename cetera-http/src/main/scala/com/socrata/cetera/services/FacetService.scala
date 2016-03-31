@@ -33,7 +33,7 @@ class FacetService(documentClient: DocumentClient, domainClient: DomainClient) {
         BadRequest ~> HeaderAclAllowOriginAll ~> jsonError(s"Invalid query parameters: $msg")
       case Right(params) =>
         try {
-          val (facets, timings) = doAggregate(cname)
+          val (facets, timings) = doAggregate(cname, req.header("Cookie"))
           logger.info(LogHelper.formatRequest(req, timings))
           OK ~> HeaderAclAllowOriginAll ~> Json(facets)
         } catch {
@@ -46,13 +46,14 @@ class FacetService(documentClient: DocumentClient, domainClient: DomainClient) {
   }
   // $COVERAGE-ON$
 
-  def doAggregate(cname: String): (Seq[FacetCount], InternalTimings) = {
+  def doAggregate(cname: String, cookie: Option[String]): (Seq[FacetCount], InternalTimings) = {
     val startMs = Timings.now()
 
-    val (domain, domainSearchTime) = domainClient.find(cname)
-    domain.getOrElse(throw new DomainNotFound(cname))
+    val (domain, domainSearchTime) = domainClient.findRelevantDomains(Some(cname), Set(cname), cookie)
 
-    val request = documentClient.buildFacetRequest(domain)
+    domain.headOption.getOrElse(throw new DomainNotFound(cname))
+
+    val request = documentClient.buildFacetRequest(domain.headOption)
     logger.info(LogHelper.formatEsRequest(request))
     val res = request.execute().actionGet()
     val aggs = res.getAggregations.asMap().asScala

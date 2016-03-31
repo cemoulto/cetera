@@ -29,6 +29,12 @@ com.socrata {
     data-directory = {{ METRICS_DIR }}
   }
 
+  core {
+    host = {{ CORE_HOST }}
+    port = {{ CORE_PORT }}
+    {{ CORE_APP_TOKEN_LINE }}
+  }
+
   elasticsearch {
     es-server = {{ ES_SERVER }}
     es-port = {{ ES_PORT }}

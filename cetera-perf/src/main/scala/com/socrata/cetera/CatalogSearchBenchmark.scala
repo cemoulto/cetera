@@ -27,7 +27,7 @@ class CatalogSearchBenchmark {
   val config = new CeteraConfig(ConfigFactory.load())
   val client = new PerfESClient
   val balboaClient = new BalboaClient(config.balboa.dataDirectory)
-  val domainClient = new DomainClient(client, config.elasticSearch.indexAliasName)
+  val domainClient = new DomainClient(client, null, config.elasticSearch.indexAliasName)
   val documentClient = new DocumentClient(
     client,
     domainClient,
@@ -69,11 +69,11 @@ class CatalogSearchBenchmark {
 
   @Benchmark
   def searchDomain(): Unit = {
-    domainCnames.foreach(c => domainClient.find(c))
+    domainCnames.foreach(c => domainClient.findRelevantDomains(Some(c), Set(c), None))
   }
 
   @Benchmark
   def query(): Unit = {
-    queryParameters.foreach(q => searchService.doSearch(q))
+    queryParameters.foreach(q => searchService.doSearch(q, None))
   }
 }

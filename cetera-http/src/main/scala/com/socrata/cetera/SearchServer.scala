@@ -3,7 +3,7 @@ package com.socrata.cetera
 import java.util.concurrent.{ExecutorService, Executors}
 
 import com.rojoma.simplearm.v2._
-import com.socrata.http.client.InetLivenessChecker
+import com.socrata.http.client.{HttpClientHttpClient, InetLivenessChecker}
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import com.typesafe.config.ConfigFactory
@@ -11,6 +11,7 @@ import org.apache.log4j.PropertyConfigurator
 import org.elasticsearch.client.transport.TransportClient
 import org.slf4j.LoggerFactory
 
+import com.socrata.cetera.authentication.CoreClient
 import com.socrata.cetera.config.CeteraConfig
 import com.socrata.cetera.handlers.Router
 import com.socrata.cetera.metrics.BalboaClient
@@ -54,9 +55,15 @@ object SearchServer extends App {
 
     esClient <- managed(
       ElasticSearchClient(config.elasticSearch))
+
+    httpClient <- managed(
+      new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.withUserAgent("cetera")))
+
+    coreClient = new CoreClient(httpClient, config.core.host, config.core.port, config.core.connectionTimeoutMs,
+      config.core.appToken)
     } {
 
-    val domainClient = new DomainClient(esClient, config.elasticSearch.indexAliasName)
+    val domainClient = new DomainClient(esClient, coreClient, config.elasticSearch.indexAliasName)
     val documentClient = new DocumentClient(
       esClient,
       domainClient,

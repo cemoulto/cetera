@@ -7,7 +7,7 @@ import com.socrata.cetera.{TestESClient, TestESData}
 
 class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData with BeforeAndAfterAll {
   val client = new TestESClient(testSuiteName)
-  val domainClient: DomainClient = new DomainClient(client, testSuiteName)
+  val domainClient: DomainClient = new DomainClient(client, null, testSuiteName)
 
   override protected def beforeAll(): Unit = {
     bootstrapData()
@@ -18,7 +18,7 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData with
     client.close()
   }
 
-  "find" should {
+  "findRelevantDomains" should {
     "return the domain if it exists : petercetera.net" in {
       val expectedDomain = Domain(
         isCustomerDomain = true,
@@ -27,9 +27,12 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData with
         domainId = 0,
         siteTitle = Some("Temporary URI"),
         moderationEnabled = false,
-        routingApprovalEnabled = false)
-      val (actualDomain, _) = domainClient.find("petercetera.net")
-      actualDomain.get should be(expectedDomain)
+        routingApprovalEnabled = false,
+        lockedDown = false,
+        apiLockedDown = false
+      )
+      val (actualDomains, _) = domainClient.findRelevantDomains(Some("petercetera.net"), Set("petercetera.net"), None)
+      actualDomains.headOption.get should be(expectedDomain)
     }
 
     "return the domain if it exists : opendata-demo.socrata.com" in {
@@ -40,21 +43,25 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData with
         domainId = 1,
         siteTitle = Some("And other things"),
         moderationEnabled = true,
-        routingApprovalEnabled = false)
-      val (actualDomain, _) = domainClient.find("opendata-demo.socrata.com")
-      actualDomain.get should be(expectedDomain)
+        routingApprovalEnabled = false,
+        lockedDown = false,
+        apiLockedDown = false
+      )
+      val (actualDomains, _) = domainClient.findRelevantDomains(Some("opendata-demo.socrata.com"),
+        Set("opendata-demo.socrata.com"), None)
+      actualDomains.headOption.get should be(expectedDomain)
     }
 
     "return None if the domain does not exist" in {
       val expectedDomain = None
-      val (actualDomain, _) = domainClient.find("hellcat.com")
-      actualDomain should be(expectedDomain)
+      val (actualDomains, _) = domainClient.findRelevantDomains(Some("hellcat.com"), Set("hellcat.socrata.com"), None)
+      actualDomains.headOption should be(expectedDomain)
     }
 
     "return None if searching for blank string" in {
       val expectedDomain = None
-      val (actualDomain, _) = domainClient.find("")
-      actualDomain should be(expectedDomain)
+      val (actualDomains, _) = domainClient.findRelevantDomains(Some(""), Set(""), None)
+      actualDomains.headOption should be(expectedDomain)
     }
 
     "return only domains with an exact match" in {
@@ -65,10 +72,13 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData with
         domainId = 4,
         siteTitle = Some("Temporary URI"),
         moderationEnabled = false,
-        routingApprovalEnabled = false)
+        routingApprovalEnabled = false,
+        lockedDown = false,
+        apiLockedDown = false)
 
-      val (actualDomain, _) = domainClient.find("dylan.demo.socrata.com")
-      actualDomain shouldBe Some(expectedDomain)
+      val (actualDomains, _) = domainClient.findRelevantDomains(Some("dylan.demo.socrata.com"),
+        Set("dylan.demo.socrata.com"), None)
+      actualDomains.headOption shouldBe Some(expectedDomain)
     }
   }
 }

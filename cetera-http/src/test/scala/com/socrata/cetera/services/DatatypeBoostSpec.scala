@@ -14,7 +14,7 @@ class DatatypeBoostSpec extends FunSuiteLike with Matchers with TestESData with 
   val boostedDatatypeQueryString = "boost" + boostedDatatype.plural.capitalize
 
   val client: ElasticSearchClient = new TestESClient(testSuiteName)
-  val domainClient: DomainClient = new DomainClient(client, testSuiteName)
+  val domainClient: DomainClient = new DomainClient(client, null, testSuiteName)
   val documentClient: DocumentClient = new DocumentClient(client, domainClient, testSuiteName, None, None, Set.empty)
   val balboaClient: BalboaClient = new BalboaClient("/tmp/metrics")
   val service: SearchService = new SearchService(documentClient, domainClient, balboaClient)
@@ -35,7 +35,7 @@ class DatatypeBoostSpec extends FunSuiteLike with Matchers with TestESData with 
       Params.querySimple -> "one",
       Params.showScore -> "true",
       boostedDatatypeQueryString -> "10"
-    ).mapValues(Seq(_)))
+    ).mapValues(Seq(_)), None)
     val oneBoosted = results.results.find(_.resource.dyn.`type`.! == JString(boostedDatatype.singular)).head
     val oneOtherThing = results.results.find(_.resource.dyn.`type`.! != JString(boostedDatatype.singular)).head
 

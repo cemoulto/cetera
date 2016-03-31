@@ -100,7 +100,9 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
         domainId = 1,
         siteTitle = Some("Temporary URI"),
         moderationEnabled = false,
-        routingApprovalEnabled = true
+        routingApprovalEnabled = true,
+        lockedDown = false,
+        apiLockedDown = false
       )
 
       val actual = Sorts.chooseSort(

@@ -42,7 +42,8 @@ class CountService(documentClient: DocumentClient, domainClient: DomainClient) {
     SearchResults(counts.map { c => Count(c.dyn.key.!, c.dyn.doc_count.!) })
 
   def doAggregate(field: DocumentFieldType with Countable with Rawable,
-                  queryParameters: MultiQueryParams): (SearchResults[Count], InternalTimings) = {
+                  queryParameters: MultiQueryParams,
+                  cookie: Option[String]): (SearchResults[Count], InternalTimings) = {
     val now = Timings.now()
 
     QueryParametersParser(queryParameters) match {
@@ -51,7 +52,8 @@ class CountService(documentClient: DocumentClient, domainClient: DomainClient) {
         throw new IllegalArgumentException(s"Invalid query parameters: $msg")
 
       case Right(params) =>
-        val (relevantDomains, domainSearchTime) = domainClient.findRelevantDomains(params.searchContext, params.domains)
+        val (relevantDomains, domainSearchTime) =
+          domainClient.findRelevantDomains(params.searchContext, params.domains, cookie)
         val searchContext = params.searchContext.flatMap(cname => relevantDomains.find(_.domainCname == cname))
         val queryDomains = params.domains match {
           case cs: Set[String] if cs.nonEmpty => cs.flatMap(cname => relevantDomains.find(_.domainCname == cname))
@@ -92,7 +94,7 @@ class CountService(documentClient: DocumentClient, domainClient: DomainClient) {
     }
 
     try {
-      val (formattedResults, timings) = doAggregate(field, req.multiQueryParams)
+      val (formattedResults, timings) = doAggregate(field, req.multiQueryParams, req.header("Cookie"))
       logger.info(LogHelper.formatRequest(req, timings))
       OK ~> HeaderAclAllowOriginAll ~> Json(formattedResults, pretty = true)
     } catch {

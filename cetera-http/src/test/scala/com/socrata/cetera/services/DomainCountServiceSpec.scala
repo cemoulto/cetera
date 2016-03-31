@@ -9,7 +9,7 @@ import com.socrata.cetera.{TestESClient, TestESData}
 
 class DomainCountServiceSpec extends FunSuiteLike with Matchers with BeforeAndAfterAll with TestESData {
   val client: ElasticSearchClient = new TestESClient(testSuiteName)
-  val domainClient: DomainClient = new DomainClient(client, testSuiteName)
+  val domainClient: DomainClient = new DomainClient(client, null, testSuiteName)
   val service: DomainCountService = new DomainCountService(domainClient)
 
   override protected def beforeAll(): Unit = {
@@ -29,7 +29,7 @@ class DomainCountServiceSpec extends FunSuiteLike with Matchers with BeforeAndAf
     val (res, _) = service.doAggregate(Map(
       Params.context -> "petercetera.net",
       Params.filterDomains -> "petercetera.net,opendata-demo.socrata.com,blue.org,annabelle.island.net")
-      .mapValues(Seq(_)))
+      .mapValues(Seq(_)), None)
     res.results should contain theSameElementsAs expectedResults
   }
 
@@ -42,7 +42,7 @@ class DomainCountServiceSpec extends FunSuiteLike with Matchers with BeforeAndAf
     val (res, _) = service.doAggregate(Map(
       Params.context -> "annabelle.island.net",
       Params.filterDomains -> "petercetera.net,opendata-demo.socrata.com,blue.org,annabelle.island.net")
-      .mapValues(Seq(_)))
+      .mapValues(Seq(_)), None)
     res.results should contain theSameElementsAs expectedResults
   }
 
@@ -54,7 +54,7 @@ class DomainCountServiceSpec extends FunSuiteLike with Matchers with BeforeAndAf
       // opendata-demo.socrata.com is not a customer domain, so the domain and all docs should be hidden
       // Count("opendata-demo.socrata.com", 0),
       Count("petercetera.net", 4))
-    val (res, _) = service.doAggregate(Map.empty)
+    val (res, _) = service.doAggregate(Map.empty, None)
     res.results should contain theSameElementsAs expectedResults
   }
 }

@@ -10,7 +10,7 @@ import com.socrata.cetera.util.Params
 
 class DomainBoostSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterAll {
   val client: ElasticSearchClient = new TestESClient(testSuiteName)
-  val domainClient: DomainClient = new DomainClient(client, testSuiteName)
+  val domainClient: DomainClient = new DomainClient(client, null, testSuiteName)
   val documentClient: DocumentClient = new DocumentClient(client, domainClient, testSuiteName, None, None, Set.empty)
   val balboaClient: BalboaClient = new BalboaClient("/tmp/metrics")
   val service: SearchService = new SearchService(documentClient, domainClient, balboaClient)
@@ -32,7 +32,7 @@ class DomainBoostSpec extends FunSuiteLike with Matchers with TestESData with Be
         Params.showScore -> "true",
         Params.context -> domain,
         Params.filterDomains -> activeDomainCnames.mkString(","),
-        s"""boostDomains[${domain}]""" -> "2").mapValues(Seq(_)))
+        s"""boostDomains[${domain}]""" -> "2").mapValues(Seq(_)), None)
       results.results.head.metadata(esDomainType) should be(JString(domain))
     }
   }
@@ -43,7 +43,7 @@ class DomainBoostSpec extends FunSuiteLike with Matchers with TestESData with Be
         Params.showScore -> "true",
         Params.context -> domain,
         Params.filterDomains -> activeDomainCnames.mkString(","),
-        s"""boostDomains[${domain}]""" -> "0.5").mapValues(Seq(_)))
+        s"""boostDomains[${domain}]""" -> "0.5").mapValues(Seq(_)), None)
       results.results.head.metadata(esDomainType) shouldNot be(JString(domain))
     }
   }
@@ -53,7 +53,8 @@ class DomainBoostSpec extends FunSuiteLike with Matchers with TestESData with Be
       val (results, _) = service.doSearch(
         Map(s"""boostDomains[${domain}]""" -> "2.34",
             "boostDomains[]" -> "3.45", // if I were custom metadata, I would not match any documents
-            Params.context -> domain).mapValues(Seq(_))
+            Params.context -> domain).mapValues(Seq(_)),
+        None
       )
       results.results.size should be > 0
     }
@@ -65,7 +66,8 @@ class DomainBoostSpec extends FunSuiteLike with Matchers with TestESData with Be
       val (results, _) = service.doSearch(
         Map(s"""boostDomains[${domain}]""" -> "2.34",
             "boostDomains" -> "3.45", // interpreted as custom metadata field which doesn't match any documents
-            Params.context -> domain).mapValues(Seq(_))
+            Params.context -> domain).mapValues(Seq(_)),
+        None
       )
       results.results should contain theSameElementsAs List.empty
     }

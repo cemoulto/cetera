@@ -10,7 +10,7 @@ import com.socrata.cetera.{TestESClient, TestESData}
 
 class FacetServiceSpec extends FunSuiteLike with Matchers with TestESData with BeforeAndAfterAll {
   val client: ElasticSearchClient = new TestESClient(testSuiteName)
-  val domainClient: DomainClient = new DomainClient(client, testSuiteName)
+  val domainClient: DomainClient = new DomainClient(client, null, testSuiteName)
   val documentClient: DocumentClient = new DocumentClient(client, domainClient, testSuiteName, None, None, Set.empty)
   val service: FacetService = new FacetService(documentClient, domainClient)
 
@@ -25,7 +25,7 @@ class FacetServiceSpec extends FunSuiteLike with Matchers with TestESData with B
 
   test("retrieve all visible domain facets") {
     val (datatypes, categories, tags, facets) = domainCnames.map { cname =>
-      val (facets, timings) = service.doAggregate(cname)
+      val (facets, timings) = service.doAggregate(cname, None)
       timings.searchMillis.headOption should be('defined)
 
       val datatypes = facets.find(_.facet == "datatypes").map(_.values).getOrElse(fail())
