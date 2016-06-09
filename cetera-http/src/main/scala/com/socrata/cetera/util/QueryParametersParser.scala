@@ -23,7 +23,10 @@ case class ValidatedQueryParameters(
     limit: Int,
     sortOrder: Option[String],
     user: Option[String],
-    attribution: Option[String])
+    attribution: Option[String],
+    owner: Option[String],
+    sharedTo: Option[String]
+)
 
 // NOTE: this is really a validation error, not a parse error
 sealed trait ParseError { def message: String }
@@ -172,6 +175,23 @@ object QueryParametersParser { // scalastyle:ignore number.of.methods
     queryParameters.first(Params.filterAttribution)
   }
 
+  // TODO should we try to consolidate for_user and owner params
+  def prepareOwner(queryParameters: MultiQueryParams): Option[String] = {
+    val owner = queryParameters.first(Params.filterOwner)
+    val user = queryParameters.first(Params.filterUser)
+
+    (owner, user) match {
+      case (None, None) => None
+      case (Some(o), None) => Some(o)
+      case (None, Some(u)) => Some(u)
+      case (Some(o), Some(u)) => Some(o) // TODO fix to throw error if these don't match
+    }
+  }
+
+  def prepareSharedTo(queryParameters: MultiQueryParams): Option[String] = {
+    queryParameters.first(Params.filterSharedTo)
+  }
+
   def prepareParentDatasetId(queryParameters: MultiQueryParams): Option[String] =
     queryParameters.first(Params.filterParentDatasetId)
 
@@ -285,7 +305,9 @@ object QueryParametersParser { // scalastyle:ignore number.of.methods
             prepareLimit(queryParameters),
             prepareSortOrder(queryParameters),
             prepareUsers(queryParameters),
-            prepareAttribution(queryParameters)
+            prepareAttribution(queryParameters),
+            prepareOwner(queryParameters),
+            prepareSharedTo(queryParameters)
           )
         )
     }
@@ -303,6 +325,8 @@ object Params {
   val filterDatatypesArray = "only[]"
   val filterUser = "for_user"
   val filterAttribution = "attribution"
+  val filterOwner = "owner"
+  val filterSharedTo = "shared_to"
   val filterParentDatasetId = "derived_from"
 
   val queryAdvanced = "q_internal"
@@ -376,6 +400,8 @@ object Params {
     filterTags,
     filterDatatypes,
     filterUser,
+    filterOwner,
+    filterSharedTo,
     filterParentDatasetId,
     queryAdvanced,
     querySimple,

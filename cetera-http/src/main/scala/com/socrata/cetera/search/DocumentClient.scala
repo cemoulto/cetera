@@ -17,6 +17,8 @@ trait BaseDocumentClient {
       categories: Option[Set[String]],
       tags: Option[Set[String]],
       datatypes: Option[Set[String]],
+      owner: Option[String],
+      sharedTo: Option[String],
       user: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
@@ -45,6 +47,15 @@ trait BaseDocumentClient {
     : SearchRequestBuilder
 
   def buildFacetRequest(domain: Option[Domain]): SearchRequestBuilder
+
+  // TODO consider refactoring remerging with the original buildSearchRequest
+  // pros of having it as 2 funcs:
+  // 1) Avoid overhead of having to think about R&A and view moderation (not relevant here)
+  // 2) Pass in domain as a string, avoiding call to ES to look up domain
+  // cons of having it as 2 funcs:
+  // 1) Looooots of duplication
+  // 2) It's not obvious why there are 2 funcs bc no good naming
+//  def buildSearch()
 }
 
 class DocumentClient(
@@ -141,6 +152,8 @@ class DocumentClient(
       datatypes: Option[Set[String]],
       user: Option[String],
       attribution: Option[String],
+      owner: Option[String],
+      sharedTo: Option[String],
       parentDatasetId: Option[String],
       searchContext: Option[Domain],
       domainMetadata: Option[Set[(String, String)]])
@@ -160,7 +173,8 @@ class DocumentClient(
     val filter = FilterBuilders.boolFilter()
     List.concat(
       datatypeFilter(datatypes),
-      userFilter(user),
+      ownerFilter(owner),  // This doesn't belong here either
+      sharedToFilter(sharedTo), // This doesn't belong here :(
       attributionFilter(attribution),
       parentDatasetFilter(parentDatasetId),
       Some(domainFilter), // TODO: remove me since I am the superset!
@@ -178,7 +192,11 @@ class DocumentClient(
   private def buildFilteredQuery(
       datatypes: Option[Set[String]],
       user: Option[String],
+      sharedTo: Option[String],
       attribution: Option[String],
+      datatypes: Option[Seq[String]],
+      owner: Option[String],
+      sharedTo: Option[String],
       parentDatasetId: Option[String],
       domains: Set[Domain],
       searchContext: Option[Domain],
@@ -212,7 +230,7 @@ class DocumentClient(
     // These constraints determine whether a document is considered part of the selection set, but
     // they do not affect the relevance score of the document.
     val compositeFilter = buildCompositeFilter(
-      domains, datatypes, user, attribution, parentDatasetId, searchContext, domainMetadata)
+      domains, datatypes, owner, sharedTo, attribution, parentDatasetId, searchContext, domainMetadata)
 
     QueryBuilders.filteredQuery(categoriesAndTagsQuery, compositeFilter)
   }
@@ -261,7 +279,8 @@ class DocumentClient(
       tags: Option[Set[String]],
       domainMetadata: Option[Set[(String, String)]],
       datatypes: Option[Set[String]],
-      user: Option[String],
+      owner: Option[String],
+      sharedTo: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
@@ -285,7 +304,8 @@ class DocumentClient(
     // Wrap basic match query in filtered query for filtering
     val filteredQuery = buildFilteredQuery(
       datatypes,
-      user,
+      owner,
+      sharedTo,
       attribution,
       parentDatasetId,
       domains,
@@ -319,6 +339,9 @@ class DocumentClient(
       datatypes: Option[Set[String]],
       user: Option[String],
       attribution: Option[String],
+      only: Option[Seq[String]],
+                          owner: Option[String],
+        sharedTo: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
       datatypeBoosts: Map[Datatype, Float],
@@ -340,6 +363,9 @@ class DocumentClient(
       datatypes,
       user,
       attribution,
+      only,
+      owner,
+      sharedTo,
       parentDatasetId,
       fieldBoosts,
       datatypeBoosts,

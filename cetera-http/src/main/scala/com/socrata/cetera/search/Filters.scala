@@ -53,10 +53,10 @@ object DocumentFilters {
     termsFilter(aggPrefix + DatatypeFieldType.fieldName, validatedDatatypes.toSeq: _*)
   }
 
-  def userFilter(user: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
-    user.map(userFilter(_, aggPrefix))
+  def ownerFilter(user: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
+    user.map(ownerFilter(_, aggPrefix))
 
-  def userFilter(user: String, aggPrefix: String): FilterBuilder =
+  def ownerFilter(user: String, aggPrefix: String): FilterBuilder =
     termFilter(aggPrefix + OwnerIdFieldType.fieldName, user)
 
   def attributionFilter(attribution: String, aggPrefix: String): FilterBuilder =
@@ -64,6 +64,12 @@ object DocumentFilters {
 
   def attributionFilter(attribution: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
     attribution.map(attributionFilter(_, aggPrefix: String))
+
+  def sharedToFilter(user: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
+    user.map(sharedToFilter(_, aggPrefix))
+
+  def sharedToFilter(user: String, aggPrefix: String): FilterBuilder =
+    termFilter(aggPrefix + SharedToFieldType.fieldName, user)
 
   def parentDatasetFilter(parentDatasetId: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
     parentDatasetId.map(parentDatasetFilter(_, aggPrefix))

@@ -256,3 +256,11 @@ case object ScreenName extends UserFieldType with Rawable {
 case object Email extends UserFieldType with Rawable {
   val fieldName: String = "email"
 }
+
+case object OwnerIdFieldType extends DocumentFieldType with Countable with NativelyRawable {
+  val fieldName: String = "owner.id"
+}
+
+case object SharedToFieldType extends DocumentFieldType {
+  val fieldName: String = "shared_to"
+}
