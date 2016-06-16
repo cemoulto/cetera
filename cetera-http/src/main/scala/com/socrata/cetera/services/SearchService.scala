@@ -130,31 +130,39 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
   def format(domainIdCnames: Map[Int, String],
              showScore: Boolean,
              searchResponse: SearchResponse): SearchResults[SearchResult] = {
-    SearchResults(searchResponse.getHits.hits().map { hit =>
-      val json = JsonReader.fromString(hit.sourceAsString())
 
-      val score = if (showScore) Seq("score" -> JNumber(hit.score)) else Seq.empty
-      val links = SearchService.links(
-        cname(domainIdCnames, json),
-        datatype(json),
-        viewtype(json),
-        datasetId(json).get,
-        domainCategoryString(json),
-        datasetName(json).get)
+    SearchResults(
+      searchResponse.getHits.hits().flatMap { hit =>
+        try {
+          val json = JsonReader.fromString(hit.sourceAsString())
 
-      SearchResult(
-        json.dyn.resource.!,
-        Classification(
-          categories(json),
-          tags(json),
-          domainCategory(json),
-          domainTags(json),
-          domainMetadata(json)),
-        Map(esDomainType -> JString(cname(domainIdCnames, json))) ++ score,
-        links.getOrElse("permalink", JString("")),
-        links.getOrElse("link", JString(""))
-      )
-    })
+          val score = if (showScore) Seq("score" -> JNumber(hit.score)) else Seq.empty
+          val links = SearchService.links(
+            cname(domainIdCnames, json),
+            datatype(json),
+            viewtype(json),
+            datasetId(json).get,
+            domainCategoryString(json),
+            datasetName(json).get)
+
+          Some(SearchResult(
+            json.dyn.resource.!,
+            Classification(
+              categories(json),
+              tags(json),
+              domainCategory(json),
+              domainTags(json),
+              domainMetadata(json)),
+            Map(esDomainType -> JString(cname(domainIdCnames, json))) ++ score,
+            links.getOrElse("permalink", JString("")),
+            links.getOrElse("link", JString(""))
+          ))
+        }
+        catch {
+          case e: Exception => None
+        }
+      }
+    )
   }
 
   def logSearchTerm(domain: Option[Domain], query: QueryType): Unit = {
