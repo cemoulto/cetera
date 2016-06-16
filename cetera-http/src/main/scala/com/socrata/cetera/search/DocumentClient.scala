@@ -19,7 +19,6 @@ trait BaseDocumentClient {
       datatypes: Option[Set[String]],
       owner: Option[String],
       sharedTo: Option[String],
-      user: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
@@ -41,7 +40,7 @@ trait BaseDocumentClient {
       categories: Option[Set[String]],
       tags: Option[Set[String]],
       datatypes: Option[Set[String]],
-      user: Option[String],
+                         owner: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String])
     : SearchRequestBuilder
