@@ -17,7 +17,8 @@ class Router(
     facetResource: String => HttpService,
     domainCountResource: => HttpService,
     countResource: DocumentFieldType with Countable with Rawable => HttpService,
-    userSearchResource: => HttpService) {
+    userSearchResource: => HttpService,
+    profileResource: => HttpService) {
 
   val routes = Routes(
     // /version is for internal use
@@ -57,7 +58,10 @@ class Router(
 
     // internal user search
     Route("/whitepages", userSearchResource),
-    Route("/whitepages/v1", userSearchResource)
+    Route("/whitepages/v1", userSearchResource),
+
+    Route("/personalCatalog", profileResource),
+    Route("/personalCatalog/v1", profileResource)
   )
 
   def route(req: HttpRequest): HttpResponse =

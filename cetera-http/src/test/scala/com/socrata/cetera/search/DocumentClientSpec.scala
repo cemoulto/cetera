@@ -75,7 +75,8 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
     limit = 20,
     sortOrder = Option("relevance"), // should be the same as None
     user = None,
-    attribution = None
+    attribution = None,
+    recipient = None
   )
 
   val shouldMatch = j"""{
@@ -353,6 +354,7 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
         domainMetadata = None,
         datatypes = None,
         user = None,
+        recipient = None,
         attribution = None,
         parentDatasetId = None,
         fieldBoosts = Map.empty,
@@ -388,6 +390,7 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
         domainMetadata = None,
         datatypes = None,
         user = None,
+        recipient = None,
         attribution = None,
         parentDatasetId = None,
         fieldBoosts = Map.empty,
@@ -423,6 +426,7 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
         domainMetadata = None,
         datatypes = None,
         user = None,
+        recipient = None,
         attribution = None,
         parentDatasetId = None,
         fieldBoosts = params.fieldBoosts,
@@ -664,6 +668,7 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
         domainMetadata = None,
         datatypes = params.datatypes,
         user = None,
+        recipient = None,
         attribution = None,
         parentDatasetId = None,
         fieldBoosts = Map.empty,
@@ -722,6 +727,7 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
         domainMetadata = None,
         datatypes = params.datatypes,
         user = None,
+        recipient = None,
         attribution = None,
         parentDatasetId = None,
         fieldBoosts = Map.empty,

@@ -18,6 +18,7 @@ trait BaseDocumentClient {
       tags: Option[Set[String]],
       datatypes: Option[Set[String]],
       user: Option[String],
+      recipient: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
@@ -29,6 +30,26 @@ trait BaseDocumentClient {
       limit: Int,
       sortOrder: Option[String])
     : SearchRequestBuilder
+
+  def buildPersonalCatalogRequest( // scalastyle:ignore parameter.number
+      user: Option[String],
+      recipient: Option[String],
+      searchQuery: QueryType,
+      searchContext: Domain,
+      categories: Option[Set[String]],
+      tags: Option[Set[String]],
+      domainMetadata: Option[Set[(String, String)]],
+      datatypes: Option[Set[String]],
+      attribution: Option[String],
+      parentDatasetId: Option[String],
+      fieldBoosts: Map[CeteraFieldType with Boostable, Float],
+      datatypeBoosts: Map[Datatype, Float],
+      minShouldMatch: Option[String],
+      slop: Option[Int],
+      offset: Int,
+      limit: Int,
+      sortOrder: Option[String])
+  : SearchRequestBuilder
 
   def buildCountRequest( // scalastyle:ignore parameter.number
       field: DocumentFieldType with Countable with Rawable,
@@ -140,6 +161,7 @@ class DocumentClient(
       domains: Set[Domain],
       datatypes: Option[Set[String]],
       user: Option[String],
+      recipient: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       searchContext: Option[Domain],
@@ -161,6 +183,7 @@ class DocumentClient(
     List.concat(
       datatypeFilter(datatypes),
       userFilter(user),
+      recipientFilter(recipient),
       attributionFilter(attribution),
       parentDatasetFilter(parentDatasetId),
       Some(domainFilter), // TODO: remove me since I am the superset!
@@ -178,6 +201,7 @@ class DocumentClient(
   private def buildFilteredQuery(
       datatypes: Option[Set[String]],
       user: Option[String],
+      recipient: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       domains: Set[Domain],
@@ -212,7 +236,7 @@ class DocumentClient(
     // These constraints determine whether a document is considered part of the selection set, but
     // they do not affect the relevance score of the document.
     val compositeFilter = buildCompositeFilter(
-      domains, datatypes, user, attribution, parentDatasetId, searchContext, domainMetadata)
+      domains, datatypes, user, recipient, attribution, parentDatasetId, searchContext, domainMetadata)
 
     QueryBuilders.filteredQuery(categoriesAndTagsQuery, compositeFilter)
   }
@@ -262,6 +286,7 @@ class DocumentClient(
       domainMetadata: Option[Set[(String, String)]],
       datatypes: Option[Set[String]],
       user: Option[String],
+      recipient: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
@@ -286,6 +311,7 @@ class DocumentClient(
     val filteredQuery = buildFilteredQuery(
       datatypes,
       user,
+      recipient,
       attribution,
       parentDatasetId,
       domains,
@@ -309,7 +335,87 @@ class DocumentClient(
     preparedSearch
   }
 
-  def buildSearchRequest( // scalastyle:ignore parameter.number
+  // TODO: refactor this out into smaller pieces
+  // scalastyle:ignore parameter.number method.length
+  def buildPersonalCatalogRequest(user: Option[String],
+                                  recipient: Option[String],
+                                  searchQuery: QueryType,
+                                  searchContext: Domain,
+                                  categories: Option[Set[String]],
+                                  tags: Option[Set[String]],
+                                  domainMetadata: Option[Set[(String, String)]],
+                                  datatypes: Option[Set[String]],
+                                  attribution: Option[String],
+                                  parentDatasetId: Option[String],
+                                  fieldBoosts: Map[CeteraFieldType with Boostable, Float],
+                                  datatypeBoosts: Map[Datatype, Float],
+                                  minShouldMatch: Option[String],
+                                  slop: Option[Int],
+                                  offset: Int,
+                                  limit: Int,
+                                  sortOrder: Option[String])
+  : SearchRequestBuilder = {
+    val matchQuery = searchQuery match {
+      case NoQuery => QueryBuilders.matchAllQuery
+      case AdvancedQuery(queryString) => generateAdvancedQuery(queryString, fieldBoosts)
+      case SimpleQuery(queryString) => generateSimpleQuery(queryString,
+        applyDefaultTitleBoost(fieldBoosts),
+        datatypeBoosts,
+        chooseMinShouldMatch(minShouldMatch, Some(searchContext)),
+        slop)
+    }
+
+    import com.socrata.cetera.search.DocumentQueries._ // scalastyle:ignore
+
+    // If there is no search context, use the ODN categories and tags
+    // otherwise use the custom domain categories and tags
+    val categoriesAndTags: Seq[QueryBuilder] =
+      List.concat(
+          domainCategoriesQuery(categories),
+          domainTagsQuery(tags))
+
+    val categoriesAndTagsQuery =
+      if (categoriesAndTags.nonEmpty) {
+        categoriesAndTags.foldLeft(QueryBuilders.boolQuery().must(matchQuery)) { (b, q) => b.must(q) }
+      } else { matchQuery }
+
+    // This is a FilterBuilder, which incorporates all of the remaining constraints.
+    // These constraints determine whether a document is considered part of the selection set, but
+    // they do not affect the relevance score of the document.
+    val compositeFilter = {
+      import com.socrata.cetera.search.DocumentFilters._ // scalastyle:ignore
+
+      val domainFilter = domainIdsFilter(Set(searchContext.domainId))
+
+      val filter = FilterBuilders.boolFilter()
+      List.concat(
+        datatypeFilter(datatypes),
+        userFilter(user),
+        recipientFilter(recipient),
+        attributionFilter(attribution),
+        parentDatasetFilter(parentDatasetId),
+        Some(domainFilter), // TODO: remove me since I am the superset!
+        domainMetadataFilter(domainMetadata) // I make it hard to de-option
+      ).foreach(filter.must)
+
+      filter
+    }
+
+    QueryBuilders.filteredQuery(categoriesAndTagsQuery, compositeFilter)
+
+    val query = QueryBuilders.functionScoreQuery(compositeFilter)
+    Boosts.applyScoreFunctions(query, scriptScoreFunctions)
+    query.scoreMode("multiply").boostMode("replace")
+
+    val preparedSearch = esClient.client
+      .prepareSearch(indexAliasName)
+      .setQuery(query)
+      .setTypes(esDocumentType)
+
+    preparedSearch
+  }
+
+  def buildSearchRequest( // scalastyle:ignore parameter.number method.length
       searchQuery: QueryType,
       domains: Set[Domain],
       domainMetadata: Option[Set[(String, String)]],
@@ -318,6 +424,7 @@ class DocumentClient(
       tags: Option[Set[String]],
       datatypes: Option[Set[String]],
       user: Option[String],
+      recipient: Option[String],
       attribution: Option[String],
       parentDatasetId: Option[String],
       fieldBoosts: Map[CeteraFieldType with Boostable, Float],
@@ -339,6 +446,7 @@ class DocumentClient(
       domainMetadata,
       datatypes,
       user,
+      recipient,
       attribution,
       parentDatasetId,
       fieldBoosts,
@@ -347,7 +455,6 @@ class DocumentClient(
       minShouldMatch,
       slop
     )
-
     // WARN: Sort will totally blow away score if score isn't part of the sort
     // "Relevance" without a query can mean different things, so chooseSort decides
     val sort = sortOrder match {
@@ -386,6 +493,7 @@ class DocumentClient(
       domainMetadata,
       datatypes,
       user,
+      None,
       attribution,
       parentDatasetId,
       Map.empty,
@@ -431,7 +539,7 @@ class DocumentClient(
           .size(aggSize)))
 
     val domainSpecificFilter = domain
-      .map(d => buildCompositeFilter(Set(d), None, None, None, None, None, None))
+      .map(d => buildCompositeFilter(Set(d), None, None, None, None, None, None, None))
       .getOrElse(FilterBuilders.matchAllFilter())
 
     val filteredAggs = AggregationBuilders

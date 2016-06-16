@@ -97,6 +97,9 @@ object SearchServer extends App {
     logger.info("Initializing UserSearchService with user, core, and domain clients")
     val userSearchService = new UserSearchService(userClient, coreClient, domainClient)
 
+    logger.info("Initializing ProfileService with document, domain, and core clients")
+    val profileService = new ProfileService(documentClient, domainClient, coreClient)
+
     logger.info("Initializing router with services")
     val router = new Router(
       versionService.Service,
@@ -104,7 +107,8 @@ object SearchServer extends App {
       facetService.Service,
       domainCountService.Service,
       countService.Service,
-      userSearchService.Service
+      userSearchService.Service,
+      profileService.Service
     )
 
     logger.info("Initializing handler")

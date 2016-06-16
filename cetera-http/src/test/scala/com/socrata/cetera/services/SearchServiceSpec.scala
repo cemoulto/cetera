@@ -113,7 +113,7 @@ class SearchServiceSpec extends FunSuiteLike with Matchers with BeforeAndAfterAl
       apiLockedDown = false)
     val resource = j"""{ "name" : "Just A Test", "I'm" : "OK", "you're" : "so-so" }"""
 
-    val searchResults = service.format(domainCnames, showScore = false, searchResponse)
+    val searchResults = SearchService.format(domainCnames, showScore = false, searchResponse)
 
     searchResults.resultSetSize should be (searchResponse.getHits.getTotalHits)
     searchResults.timings should be (None) // not yet added

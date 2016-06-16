@@ -46,68 +46,6 @@ object SearchResult {
 class SearchService(elasticSearchClient: BaseDocumentClient,
                     domainClient: BaseDomainClient,
                     balboaClient: BalboaClient) extends SimpleResource {
-  lazy val logger = LoggerFactory.getLogger(classOf[SearchService])
-
-  // TODO: cetera-etl rename customer_blah to domain_blah
-  private def domainCategory(j: JValue): Option[JValue] = j.dyn.customer_category.? match {
-    case Left(e) => None
-    case Right(jv) => Some(jv)
-  }
-
-  private def domainCategoryString(j: JValue): Option[String] =
-    domainCategory(j).flatMap {
-      case JString(s) => Option(s)
-      case _ => None
-    }
-
-  private def domainTags(j: JValue): Option[JValue] = j.dyn.customer_tags.? match {
-    case Left(e) => None
-    case Right(jv) => Some(jv)
-  }
-
-  private def domainMetadata(j: JValue): Option[JValue] = j.dyn.customer_metadata_flattened.? match {
-    case Left(e) => None
-    case Right(jv) => Some(jv)
-  }
-
-  private def categories(j: JValue): Stream[JValue] =
-    new JPath(j).down("animl_annotations").down("categories").*.down("name").finish.distinct
-
-  private def tags(j: JValue): Stream[JValue] =
-    new JPath(j).down("animl_annotations").down("tags").*.down("name").finish.distinct
-
-  private def popularity(j: JValue): Option[(String,JValue)] =
-    j.dyn.popularity.?.fold(_ => None, r => Option(("popularity", r)))
-
-  private def updateFreq(j: JValue): Option[(String,JValue)] =
-    j.dyn.update_freq.?.fold(_ => None, r => Option(("update_freq", r)))
-
-  private def cname(domainCnames: Map[Int,String], j: JValue): String = {
-    val id: Option[Int] = j.dyn.socrata_id.domain_id.! match {
-      case jn: JNumber => Option(jn.toInt)
-      case JArray(elems) => elems.lastOption.map(_.asInstanceOf[JNumber].toInt)
-      case jv: JValue => throw new NoSuchElementException(s"Unexpected json value $jv")
-    }
-    id.flatMap { i =>
-      domainCnames.get(i)
-    }.getOrElse("") // if no domain was found, default to blank string
-  }
-
-  private def extractJString(decoded: Either[DecodeError, JValue]): Option[String] =
-    decoded.fold(_ => None, {
-      case JString(s) => Option(s)
-      case _ => None
-    })
-
-  private def datatype(j: JValue): Option[Datatype] =
-    extractJString(j.dyn.datatype.?).flatMap(s => Datatype(s))
-
-  private def viewtype(j: JValue): Option[String] = extractJString(j.dyn.viewtype.?)
-
-  private def datasetId(j: JValue): Option[String] = extractJString(j.dyn.socrata_id.dataset_id.?)
-
-  private def datasetName(j: JValue): Option[String] = extractJString(j.dyn.resource.name.?)
-
   // When we construct this map, we already have the set of all possible domains
   // TODO: Verify that the "should never happen" clause does not actually happen
   private def extractDomainCnames(domainIdCnames: Map[Int, String], hits: SearchHits): Map[Int, String] = {
@@ -119,44 +57,13 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
     }.toSet // deduplicate domain id
 
     val unknownDomainIds = distinctDomainIds -- domainIdCnames.keys // don't repeat lookup for known domains
-    if (unknownDomainIds.nonEmpty) logger.warn(s"Domains not known at query construction time: $unknownDomainIds.")
+    if (unknownDomainIds.nonEmpty) {
+      SearchService.logger.warn(s"Domains not known at query construction time: $unknownDomainIds.")
+    }
     unknownDomainIds.flatMap { i =>
       // This should never happen!!! ;)
       domainClient.fetch(i).map { d => i -> d.domainCname } // lookup domain cname from elasticsearch
     }.toMap ++ domainIdCnames
-  }
-
-  // WARN: This will raise if a single document has a single missing path!
-  def format(domainIdCnames: Map[Int, String],
-             showScore: Boolean,
-             searchResponse: SearchResponse): SearchResults[SearchResult] = {
-    val hits = searchResponse.getHits
-    val searchResult = hits.hits().map { hit =>
-      val json = JsonReader.fromString(hit.sourceAsString())
-
-      val score = if (showScore) Seq("score" -> JNumber(hit.score)) else Seq.empty
-      val links = SearchService.links(
-        cname(domainIdCnames, json),
-        datatype(json),
-        viewtype(json),
-        datasetId(json).get,
-        domainCategoryString(json),
-        datasetName(json).get)
-
-      SearchResult(
-        json.dyn.resource.!,
-        Classification(
-          categories(json),
-          tags(json),
-          domainCategory(json),
-          domainTags(json),
-          domainMetadata(json)),
-        Map(esDomainType -> JString(cname(domainIdCnames, json))) ++ score,
-        links.getOrElse("permalink", JString("")),
-        links.getOrElse("link", JString(""))
-      )
-    }
-    SearchResults(searchResult, hits.getTotalHits)
   }
 
   def logSearchTerm(domain: Option[Domain], query: QueryType): Unit = {
@@ -219,6 +126,7 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
           params.tags,
           params.datatypes,
           params.user,
+          params.recipient,
           params.attribution,
           params.parentDatasetId,
           params.fieldBoosts,
@@ -231,7 +139,7 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
           params.sortOrder
         )
 
-        logger.info(LogHelper.formatEsRequest(req))
+        SearchService.logger.info(LogHelper.formatEsRequest(req))
         val res = req.execute.actionGet
 
         val idCnames = extractDomainCnames(
@@ -239,7 +147,7 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
           res.getHits
         )
 
-        val formattedResults: SearchResults[SearchResult] = format(idCnames, params.showScore, res)
+        val formattedResults: SearchResults[SearchResult] = SearchService.format(idCnames, params.showScore, res)
         val timings = InternalTimings(Timings.elapsedInMillis(now), Seq(domainSearchTime, res.getTookInMillis))
         logSearchTerm(searchContextDomain, params.searchQuery)
 
@@ -248,7 +156,7 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
   }
 
   def search(req: HttpRequest): HttpResponse = {
-    logger.debug(LogHelper.formatHttpRequestVerbose(req))
+    SearchService.logger.debug(LogHelper.formatHttpRequestVerbose(req))
 
     val cookie = req.header(HeaderCookieKey)
     val extendedHost = req.header(HeaderXSocrataHostKey)
@@ -256,20 +164,20 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
 
     try {
       val (formattedResults, timings, setCookies) = doSearch(req.multiQueryParams, cookie, extendedHost, requestId)
-      logger.info(LogHelper.formatRequest(req, timings))
+      SearchService.logger.info(LogHelper.formatRequest(req, timings))
       Http.decorate(Json(formattedResults, pretty = true), OK, setCookies)
     } catch {
       case e: IllegalArgumentException =>
-        logger.info(e.getMessage)
+        SearchService.logger.info(e.getMessage)
         BadRequest ~> HeaderAclAllowOriginAll ~> jsonError(e.getMessage)
       case DomainNotFound(e) =>
         val msg = s"Domain not found: $e"
-        logger.error(msg)
+        SearchService.logger.error(msg)
         NotFound ~> HeaderAclAllowOriginAll ~> jsonError(msg)
       case NonFatal(e) =>
         val msg = "Cetera search service error"
         val esError = ElasticsearchError(e)
-        logger.error(s"$msg: $esError")
+        SearchService.logger.error(s"$msg: $esError")
         InternalServerError ~> HeaderAclAllowOriginAll ~> jsonError("We're sorry. Something went wrong.")
     }
   }
@@ -282,6 +190,8 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
 }
 
 object SearchService {
+  lazy val logger = LoggerFactory.getLogger(classOf[SearchService])
+
   def links(cname: String,
              datatype: Option[Datatype],
              viewtype: Option[String],
@@ -313,5 +223,100 @@ object SearchService {
       "permalink" ->JString(s"https://$cname/$perma/$datasetId"),
       "link" -> JString(s"https://$cname/$pretty/$datasetId")
     )
+  }
+
+  // TODO: maybe refactor to pull these out of SearchService so other services can use them.
+  //      Note: ProfileService currently uses them
+  // TODO: cetera-etl rename customer_blah to domain_blah
+  def domainCategory(j: JValue): Option[JValue] = j.dyn.customer_category.? match {
+    case Left(e) => None
+    case Right(jv) => Some(jv)
+  }
+
+  def domainCategoryString(j: JValue): Option[String] =
+    domainCategory(j).flatMap {
+      case JString(s) => Option(s)
+      case _ => None
+    }
+
+  def domainTags(j: JValue): Option[JValue] = j.dyn.customer_tags.? match {
+    case Left(e) => None
+    case Right(jv) => Some(jv)
+  }
+
+  def domainMetadata(j: JValue): Option[JValue] = j.dyn.customer_metadata_flattened.? match {
+    case Left(e) => None
+    case Right(jv) => Some(jv)
+  }
+
+  def categories(j: JValue): Stream[JValue] =
+    new JPath(j).down("animl_annotations").down("categories").*.down("name").finish.distinct
+
+  def tags(j: JValue): Stream[JValue] =
+    new JPath(j).down("animl_annotations").down("tags").*.down("name").finish.distinct
+
+  def popularity(j: JValue): Option[(String,JValue)] =
+    j.dyn.popularity.?.fold(_ => None, r => Option(("popularity", r)))
+
+  def updateFreq(j: JValue): Option[(String,JValue)] =
+    j.dyn.update_freq.?.fold(_ => None, r => Option(("update_freq", r)))
+
+  def cname(domainCnames: Map[Int,String], j: JValue): String = {
+    val id: Option[Int] = j.dyn.socrata_id.domain_id.! match {
+      case jn: JNumber => Option(jn.toInt)
+      case JArray(elems) => elems.lastOption.map(_.asInstanceOf[JNumber].toInt)
+      case jv: JValue => throw new NoSuchElementException(s"Unexpected json value $jv")
+    }
+    id.flatMap { i =>
+      domainCnames.get(i)
+    }.getOrElse("") // if no domain was found, default to blank string
+  }
+
+  def extractJString(decoded: Either[DecodeError, JValue]): Option[String] =
+    decoded.fold(_ => None, {
+      case JString(s) => Option(s)
+      case _ => None
+    })
+
+  def datatype(j: JValue): Option[Datatype] =
+    extractJString(j.dyn.datatype.?).flatMap(s => Datatype(s))
+
+  def viewtype(j: JValue): Option[String] = extractJString(j.dyn.viewtype.?)
+
+  def datasetId(j: JValue): Option[String] = extractJString(j.dyn.socrata_id.dataset_id.?)
+
+  def datasetName(j: JValue): Option[String] = extractJString(j.dyn.resource.name.?)
+
+  // WARN: This will raise if a single document has a single missing path!
+  def format(domainIdCnames: Map[Int, String],
+             showScore: Boolean,
+             searchResponse: SearchResponse): SearchResults[SearchResult] = {
+    val hits = searchResponse.getHits
+    val searchResult = hits.hits().map { hit =>
+      val json = JsonReader.fromString(hit.sourceAsString())
+
+      val score = if (showScore) Seq("score" -> JNumber(hit.score)) else Seq.empty
+      val links = SearchService.links(
+        cname(domainIdCnames, json),
+        datatype(json),
+        viewtype(json),
+        datasetId(json).get,
+        domainCategoryString(json),
+        datasetName(json).get)
+
+      SearchResult(
+        json.dyn.resource.!,
+        Classification(
+          categories(json),
+          tags(json),
+          domainCategory(json),
+          domainTags(json),
+          domainMetadata(json)),
+        Map(esDomainType -> JString(cname(domainIdCnames, json))) ++ score,
+        links.getOrElse("permalink", JString("")),
+        links.getOrElse("link", JString(""))
+      )
+    }
+    SearchResults(searchResult, hits.getTotalHits)
   }
 }

@@ -358,6 +358,11 @@ class QueryParametersParserSpec extends FunSuiteLike with Matchers {
       case _ => fail()
     }
 
+    QueryParametersParser(Map("recipient" -> Seq("")), None) match {
+      case Right(params) => params.parentDatasetId shouldNot be('defined)
+      case _ => fail()
+    }
+
     QueryParametersParser(Map("custom_metadata" -> Seq("")), None) match {
       case Right(params) => params.parentDatasetId shouldNot be('defined)
       case _ => fail()

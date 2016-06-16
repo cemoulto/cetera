@@ -59,6 +59,12 @@ object DocumentFilters {
   def userFilter(user: String, aggPrefix: String): FilterBuilder =
     termFilter(aggPrefix + OwnerIdFieldType.fieldName, user)
 
+  def recipientFilter(user: Option[String], aggPrefix: String = ""): Option[FilterBuilder] =
+    user.map(recipientFilter(_, aggPrefix))
+
+  def recipientFilter(user: String, aggPrefix: String): FilterBuilder =
+    termFilter(aggPrefix + SharedToFieldType.fieldName, user)
+
   def attributionFilter(attribution: String, aggPrefix: String): FilterBuilder =
     termFilter(aggPrefix + AttributionFieldType.rawFieldName, attribution)
 

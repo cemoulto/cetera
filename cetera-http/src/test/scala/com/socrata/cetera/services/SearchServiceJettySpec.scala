@@ -35,7 +35,7 @@ class SearchServiceJettySpec extends FunSuiteLike with Matchers with MockFactory
     mockDomainClient.expects('findRelevantDomains)(None, None, Some("c=cookie"), Some("1"))
       .returns((None, Set.empty, 123L, expectedSetCookie))
 
-    mockDocumentClient.expects('buildSearchRequest)(NoQuery, Set(), None, None, None, None, None, None, None, None,
+    mockDocumentClient.expects('buildSearchRequest)(NoQuery, Set(), None, None, None, None, None, None, None, None, None,
       Map(), Map(), Map(), None, None, 0, 100, None)
       .returns(new SearchRequestBuilder(client.client))
 

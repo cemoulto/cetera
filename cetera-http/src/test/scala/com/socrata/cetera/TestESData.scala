@@ -119,7 +119,8 @@ trait TestESData {
       |   "id": %s,
       |   "screen_name": %s
       | },
-      | "attribution": %s
+      | "attribution": %s,
+      | "shared_to": %s
       |}
     """.stripMargin
 
@@ -167,7 +168,8 @@ trait TestESData {
                          updateFreq: Long,
                          ownerId: String,
                          ownerScreenName: String,
-                         attribution: Option[String]): String = {
+                         attribution: Option[String],
+                         sharedTo: Option[Seq[String]]): String = {
     val doc = esDocTemplate.format(
       quoteQualify(socrataIdDatasetId),
       quoteQualify(parentDatasetId),
@@ -206,7 +208,8 @@ trait TestESData {
       quoteQualify(ownerId),
       quoteQualify(ownerId),
       quoteQualify(ownerScreenName),
-      quoteQualify(attribution))
+      quoteQualify(attribution),
+      quoteQualify(sharedTo.getOrElse(List("null"))))
 
     doc
   }
@@ -249,7 +252,8 @@ trait TestESData {
       updateFreqs(i % updateFreqs.length),
       ownerIds(i % ownerIds.length),
       ownerScreenNames(i % ownerScreenNames.length),
-      attributions(i % attributions.length))
+      attributions(i % attributions.length),
+      sharedTos(i % sharedTos.length))
   }
 
   val domainsWithData = domains.slice(0,4).map(d => d.domainCname)
@@ -291,6 +295,7 @@ trait TestESData {
   val ownerIds = Seq("robin-hood", "lil-john")
   val ownerScreenNames = Seq("Robin Hood", "Little John")
   val attributions = Seq[Option[String]](None)
+  val sharedTos = Seq[Option[Seq[String]]](None)
 
   def bootstrapData(): Unit = {
     ElasticsearchBootstrap.ensureIndex(client, "yyyyMMddHHmm", testSuiteName)
@@ -331,7 +336,7 @@ trait TestESData {
         "", "", Seq.empty, Seq.empty, Seq.empty,
         Map.empty,
         isPublic = true, isPublished = true, isDefaultView = false, Some(true), Seq(0), isApprovedByParentDomain = true,
-        "42", "Fun", Seq.empty, 0L, "robin-hood", "Robin Hood", None
+        "42", "Fun", Seq.empty, 0L, "robin-hood", "Robin Hood", None, None
       )),
       (3, buildEsDoc(
         "zeta-0002", None, 3,
@@ -341,7 +346,7 @@ trait TestESData {
         "", "", Seq.empty, Seq.empty, Seq.empty,
         Map.empty,
         isPublic = true, isPublished = true, isDefaultView = false, Some(true), Seq(2,3), isApprovedByParentDomain = true,
-        "42", "Fun", Seq.empty, 0L, "lil-john", "Little John", None
+        "42", "Fun", Seq.empty, 0L, "lil-john", "Little John", None, None
       )),
       (0, buildEsDoc(
         "zeta-0003", None, 0,
@@ -351,7 +356,7 @@ trait TestESData {
         "", "", Seq.empty, Seq.empty, Seq.empty,
         Map.empty,
         isPublic = false, isPublished = true, isDefaultView = true, Some(true), Seq(0, 1, 2,3), isApprovedByParentDomain = true,
-        "42", "Private", Seq.empty, 0L, "robin-hood", "Robin Hood", None
+        "42", "Private", Seq.empty, 0L, "robin-hood", "Robin Hood", None, None
       )),
       (0, buildEsDoc(
         "zeta-0004", None, 0,
@@ -361,7 +366,7 @@ trait TestESData {
         "", "", Seq.empty, Seq.empty, Seq.empty,
         Map.empty,
         isPublic = true, isPublished = true, isDefaultView = false, None, Seq(0, 1, 2,3), isApprovedByParentDomain = true,
-        "42", "Standalone", Seq.empty, 0L, "lil-john", "Little John", None
+        "42", "Standalone", Seq.empty, 0L, "lil-john", "Little John", None, Some(Seq("robin-hood"))
       )),
       (3, buildEsDoc(
         "zeta-0005", None, 3,
@@ -370,7 +375,7 @@ trait TestESData {
         TypeDatasets.singular, viewtype = "", 0F,
         "", "", Seq.empty, Seq.empty, Seq.empty, Map.empty,
         isPublic = true, isPublished = true, isDefaultView = true, Some(true), Seq(3), isApprovedByParentDomain = true,
-        "42", "Fun", Seq.empty, 0L, "john-clan", "John McClane", None
+        "42", "Fun", Seq.empty, 0L, "john-clan", "John McClane", None, None
       )),
       (0, buildEsDoc(
         "zeta-0006", None, 0,
@@ -380,7 +385,7 @@ trait TestESData {
         "", "", Seq.empty, Seq.empty, Seq.empty,
         Map.empty,
         isPublic = true, isPublished = false, isDefaultView = true, Some(true), Seq(0, 1, 2,3), isApprovedByParentDomain = true,
-        "42", "Unpublished", Seq.empty, 0L, "robin-hood", "Robin Hood", None
+        "42", "Unpublished", Seq.empty, 0L, "robin-hood", "Robin Hood", None, None
        )),
       (0, buildEsDoc(
         "zeta-0007", None, 0,
@@ -391,7 +396,7 @@ trait TestESData {
         Map.empty,
         isPublic = true, isPublished = true, isDefaultView = true, Some(true), Seq(0, 1, 2, 3), isApprovedByParentDomain = true,
         "42", "Fun", Seq.empty, 0L, "lil-john", "Little John",
-        attribution = Some("The Merry Men")
+        attribution = Some("The Merry Men"), None
       ))
     ).foreach { case (domain, doc) =>
       client.client.prepareIndex(testSuiteName, esDocumentType)

@@ -23,7 +23,8 @@ case class ValidatedQueryParameters(
     limit: Int,
     sortOrder: Option[String],
     user: Option[String],
-    attribution: Option[String])
+    attribution: Option[String],
+    recipient: Option[String])
 
 // NOTE: this is really a validation error, not a parse error
 sealed trait ParseError { def message: String }
@@ -191,6 +192,10 @@ object QueryParametersParser { // scalastyle:ignore number.of.methods
     filterNonEmptyStringParams(queryParameters.first(Params.filterParentDatasetId))
   }
 
+  def prepareRecipient(queryParameters: MultiQueryParams): Option[String] = {
+    filterNonEmptyStringParams(queryParameters.first(Params.filterRecipient))
+  }
+
   def prepareDomainMetadata(queryParameters: MultiQueryParams): Option[Set[(String, String)]] = {
     val queryParamsNonEmpty = queryParameters.filter { case (key, value) => key.nonEmpty && value.nonEmpty }
     // TODO: EN-1401 - don't just take head, allow for mulitple selections
@@ -301,7 +306,8 @@ object QueryParametersParser { // scalastyle:ignore number.of.methods
             prepareLimit(queryParameters),
             prepareSortOrder(queryParameters),
             prepareUsers(queryParameters),
-            prepareAttribution(queryParameters)
+            prepareAttribution(queryParameters),
+            prepareRecipient(queryParameters)
           )
         )
     }
@@ -320,6 +326,7 @@ object Params {
   val filterUser = "for_user"
   val filterAttribution = "attribution"
   val filterParentDatasetId = "derived_from"
+  val filterRecipient = "recipient"
 
   val queryAdvanced = "q_internal"
   val querySimple = "q"
@@ -393,6 +400,7 @@ object Params {
     filterTags,
     filterDatatypes,
     filterUser,
+    filterRecipient,
     filterParentDatasetId,
     queryAdvanced,
     querySimple,
