@@ -59,7 +59,7 @@ class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexA
         case Right(domain) => Some(domain)
         case Left(err) =>
           logger.error(err.english)
-          throw new JsonDecodeException(err)
+          None // This used to throw new JsonDecodeException(err) but we need resilience
       }
     }.toSet
 
