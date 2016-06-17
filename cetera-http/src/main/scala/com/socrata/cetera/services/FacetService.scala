@@ -11,8 +11,8 @@ import org.elasticsearch.search.aggregations.bucket.filter.Filter
 import org.elasticsearch.search.aggregations.bucket.nested.Nested
 import org.elasticsearch.search.aggregations.bucket.terms.Terms
 import org.slf4j.LoggerFactory
-
 import com.socrata.cetera._
+import com.socrata.cetera.handlers.{SearchParamSet, VisibilityParamSet}
 import com.socrata.cetera.search.{BaseDocumentClient, BaseDomainClient, DomainNotFound}
 import com.socrata.cetera.types._
 import com.socrata.cetera.util.JsonResponses._
@@ -37,7 +37,7 @@ class FacetService(documentClient: BaseDocumentClient, domainClient: BaseDomainC
         BadRequest ~> HeaderAclAllowOriginAll ~> jsonError(s"Invalid query parameters: $msg")
       case Right(params) =>
         try {
-          val (facets, timings, setCookies) = doAggregate(cname, cookie, requestId)
+          val (facets, timings, setCookies) = doAggregate(cname, params.searchParamSet, cookie, requestId)
           logger.info(LogHelper.formatRequest(req, timings))
           Http.decorate(Json(facets, pretty = true), OK, setCookies)
         } catch {
@@ -55,16 +55,19 @@ class FacetService(documentClient: BaseDocumentClient, domainClient: BaseDomainC
   // $COVERAGE-ON$
 
   def doAggregate(cname: String,
+                  searchParamSet: SearchParamSet,
                   cookie: Option[String],
                   requestId: Option[String]
                  ): (Seq[FacetCount], InternalTimings, Seq[String]) = {
     val startMs = Timings.now()
 
-    val (domain, _, domainSearchTime, setCookies) =
-      domainClient.findRelevantDomains(Some(cname), Some(Set(cname)), cookie, requestId)
-    domain match {
+    val (domainSet, domainSearchTime, setCookies) =
+      domainClient.findSearchableDomains(Some(cname), Some(Set(cname)), true, cookie, requestId)
+    domainSet.searchContext match {
       case Some(d) => // domain exists and is viewable by user
-        val request = documentClient.buildFacetRequest(domain)
+        // TODO: need approval logic somewhere.
+        val visibilityParamSet = VisibilityParamSet(Some("approved"), Some("approved"), Some("approved"))
+        val request = documentClient.buildFacetRequest(d, searchParamSet, visibilityParamSet)
         logger.info(LogHelper.formatEsRequest(request))
         val res = request.execute().actionGet()
         val aggs = res.getAggregations.asMap().asScala

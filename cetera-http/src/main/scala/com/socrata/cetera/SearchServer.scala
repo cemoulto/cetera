@@ -11,7 +11,7 @@ import org.apache.log4j.PropertyConfigurator
 import org.elasticsearch.client.transport.TransportClient
 import org.slf4j.LoggerFactory
 
-import com.socrata.cetera.authentication.CoreClient
+import com.socrata.cetera.auth.CoreClient
 import com.socrata.cetera.config.CeteraConfig
 import com.socrata.cetera.handlers.Router
 import com.socrata.cetera.metrics.BalboaClient

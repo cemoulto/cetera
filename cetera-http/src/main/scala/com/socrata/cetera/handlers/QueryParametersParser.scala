@@ -1,29 +1,14 @@
 package com.socrata.cetera.util
 
+import com.socrata.cetera.handlers.{PagingParamSet, RelevanceParamSet, SearchParamSet, VisibilityParamSet}
 import com.socrata.cetera.search.Sorts
 import com.socrata.cetera.types._
 
 // These are validated input parameters but aren't supposed to know anything about ES
 case class ValidatedQueryParameters(
-    searchQuery: QueryType,
-    domains: Option[Set[String]],
-    domainMetadata: Option[Set[(String, String)]],
-    searchContext: Option[String],
-    categories: Option[Set[String]],
-    tags: Option[Set[String]],
-    datatypes: Option[Set[String]],
-    parentDatasetId: Option[String],
-    fieldBoosts: Map[CeteraFieldType with Boostable, Float],
-    datatypeBoosts: Map[Datatype, Float],
-    domainBoosts: Map[String, Float],
-    minShouldMatch: Option[String],
-    slop: Option[Int],
-    showScore: Boolean,
-    offset: Int,
-    limit: Int,
-    sortOrder: Option[String],
-    user: Option[String],
-    attribution: Option[String])
+  searchParamSet: SearchParamSet,
+  relevanceParamSet: RelevanceParamSet,
+  pagingParamSet: PagingParamSet)
 
 // NOTE: this is really a validation error, not a parse error
 sealed trait ParseError { def message: String }
@@ -260,34 +245,35 @@ object QueryParametersParser { // scalastyle:ignore number.of.methods
             extendedHost: Option[String]
            ): Either[Seq[ParseError], ValidatedQueryParameters] = {
     // NOTE! We don't have to run most of these if just any of them fail validation
-    // TODO reorder semantically (searchContext before domainMetadata)
     // Add params to the match to provide helpful error messages
     prepareDatatypes(queryParameters) match {
       case Left(e)          => Left(Seq(e))
       case Right(datatypes) =>
-        Right(
-          ValidatedQueryParameters(
-            prepareSearchQuery(queryParameters),
-            prepareDomains(queryParameters),
-            prepareDomainMetadata(queryParameters),
-            prepareSearchContext(queryParameters, extendedHost),
-            prepareCategories(queryParameters),
-            prepareTags(queryParameters),
-            datatypes,
-            prepareParentDatasetId(queryParameters),
-            prepareFieldBoosts(queryParameters),
-            prepareDatatypeBoosts(queryParameters),
-            prepareDomainBoosts(queryParameters),
-            prepareMinShouldMatch(queryParameters),
-            prepareSlop(queryParameters),
-            prepareShowScore(queryParameters),
-            prepareOffset(queryParameters),
-            prepareLimit(queryParameters),
-            prepareSortOrder(queryParameters),
-            prepareUsers(queryParameters),
-            prepareAttribution(queryParameters)
-          )
+        val searchParams = SearchParamSet(
+          prepareSearchQuery(queryParameters),
+          prepareDomains(queryParameters),
+          prepareSearchContext(queryParameters, extendedHost),
+          prepareDomainMetadata(queryParameters),
+          prepareCategories(queryParameters),
+          prepareTags(queryParameters),
+          datatypes,
+          prepareUsers(queryParameters),
+          prepareAttribution(queryParameters),
+          prepareParentDatasetId(queryParameters)
         )
+        val relevanceParams = RelevanceParamSet(
+          prepareFieldBoosts(queryParameters),
+          prepareDatatypeBoosts(queryParameters),
+          prepareDomainBoosts(queryParameters),
+          prepareMinShouldMatch(queryParameters),
+          prepareSlop(queryParameters),
+          prepareShowScore(queryParameters)
+        )
+        val pagingParams = PagingParamSet(
+          prepareOffset(queryParameters),
+          prepareLimit(queryParameters),
+          prepareSortOrder(queryParameters))
+        Right(ValidatedQueryParameters(searchParams, relevanceParams, pagingParams))
     }
   }
 }

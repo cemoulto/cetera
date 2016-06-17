@@ -3,46 +3,9 @@ package com.socrata.cetera.search
 import org.elasticsearch.index.query.FilterBuilders._
 import org.elasticsearch.index.query.MatchQueryBuilder.Type.PHRASE
 import org.elasticsearch.index.query.QueryBuilders._
-import org.elasticsearch.index.query.{FilterBuilder, QueryBuilder}
-
+import org.elasticsearch.index.query.{FilterBuilder, QueryBuilder, QueryBuilders}
 import com.socrata.cetera._
 import com.socrata.cetera.types._
-
-object DocumentQueries {
-  def categoriesQuery(categories: Option[Set[String]]): Option[QueryBuilder] =
-    categories.map { cs =>
-      nestedQuery(
-        CategoriesFieldType.fieldName,
-        cs.foldLeft(boolQuery().minimumNumberShouldMatch(1)) { (b, q) =>
-          b.should(matchQuery(CategoriesFieldType.Name.fieldName, q).`type`(PHRASE))
-        }
-      )
-    }
-
-  def tagsQuery(tags: Option[Set[String]]): Option[QueryBuilder] =
-    tags.map { tags =>
-      nestedQuery(
-        TagsFieldType.fieldName,
-        tags.foldLeft(boolQuery().minimumNumberShouldMatch(1)) { (b, q) =>
-          b.should(matchQuery(TagsFieldType.Name.fieldName, q).`type`(PHRASE))
-        }
-      )
-    }
-
-  def domainCategoriesQuery(categories: Option[Set[String]]): Option[QueryBuilder] =
-    categories.map { cs =>
-      cs.foldLeft(boolQuery().minimumNumberShouldMatch(1)) { (b, q) =>
-        b.should(matchQuery(DomainCategoryFieldType.fieldName, q).`type`(PHRASE))
-      }
-    }
-
-  def domainTagsQuery(tags: Option[Set[String]]): Option[QueryBuilder] =
-    tags.map { ts =>
-      ts.foldLeft(boolQuery().minimumNumberShouldMatch(1)) { (b, q) =>
-        b.should(matchQuery(DomainTagsFieldType.fieldName, q).`type`(PHRASE))
-      }
-    }
-}
 
 object DocumentFilters {
   def datatypeFilter(datatypes: Option[Set[String]], aggPrefix: String = ""): Option[FilterBuilder] =

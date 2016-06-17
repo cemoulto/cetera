@@ -11,7 +11,7 @@ import org.elasticsearch.search.aggregations.AggregationBuilders.terms
 import org.elasticsearch.search.aggregations.bucket.terms.Terms
 import org.openjdk.jmh.annotations._
 
-import com.socrata.cetera.authentication.CoreClient
+import com.socrata.cetera.auth.CoreClient
 import com.socrata.cetera.config.CeteraConfig
 import com.socrata.cetera.metrics.BalboaClient
 import com.socrata.cetera.search.{DocumentClient, DomainClient}
@@ -77,7 +77,7 @@ class CatalogSearchBenchmark {
 
   @Benchmark
   def searchDomain(): Unit = {
-    domainCnames.foreach(c => domainClient.findRelevantDomains(Some(c), None, None, None))
+    domainCnames.foreach(c => domainClient.findSearchableDomains(Some(c), None, None, None))
   }
 
   @Benchmark

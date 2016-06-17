@@ -80,27 +80,27 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData
   "findRelevantDomains" should {
     "return the context if it exists among customer domains: petercetera.net" in {
       val expectedContext = domains(0)
-      val (actualContext, _, _, _) = domainClient.findRelevantDomains(Some("petercetera.net"), None, None, None)
+      val (actualContext, _, _, _) = domainClient.findSearchableDomains(Some("petercetera.net"), None, None, None)
       actualContext.get should be(expectedContext)
     }
 
     "return the domain if it exists among the given cnames : opendata-demo.socrata.com" in {
       val expectedContext = domains(1)
-      val (actualContext, _, _, _) = domainClient.findRelevantDomains(
+      val (actualContext, _, _, _) = domainClient.findSearchableDomains(
         Some("opendata-demo.socrata.com"), Some(Set("opendata-demo.socrata.com")), None, None)
       actualContext.get should be(expectedContext)
     }
 
     "return all the unlocked customer domains if not given cnames" in {
       val unlockedDomains = Set(domains(0), domains(2), domains(3), domains(4))
-      val (_, actualDomains, _, _) = domainClient.findRelevantDomains(None, None, None, None)
+      val (_, actualDomains, _, _) = domainClient.findSearchableDomains(None, None, None, None)
       actualDomains should be(unlockedDomains)
     }
 
     "return all the unlocked domains among the given cnames if they exist" in {
       val expectedDomains = Set(domains(3), domains(4))
       val wantedDomains = Some(expectedDomains.map(d => d.domainCname))
-      val (_, actualDomains, _, _) = domainClient.findRelevantDomains(None, wantedDomains, None, None)
+      val (_, actualDomains, _, _) = domainClient.findSearchableDomains(None, wantedDomains, None, None)
       actualDomains should be(expectedDomains)
     }
 
@@ -137,7 +137,7 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData
           .withBody(CompactJsonWriter.toString(userBody))
       )
 
-      val (actualContext, actualDomains, _, _) = domainClient.findRelevantDomains(Some(context.domainCname),
+      val (actualContext, actualDomains, _, _) = domainClient.findSearchableDomains(Some(context.domainCname),
         Some(wantedCnames), Some("c=cookie"), None)
       actualContext.get should be(context)
       actualDomains should be(wantedDomains)
@@ -145,25 +145,25 @@ class DomainClientSpec extends WordSpec with ShouldMatchers with TestESData
 
     "throw DomainNotFound exception when searchContext is missing" in {
       intercept[DomainNotFound] {
-        domainClient.findRelevantDomains(Some("iamnotarealdomain.wat"), None, None, None)
+        domainClient.findSearchableDomains(Some("iamnotarealdomain.wat"), None, None, None)
       }
     }
 
     "throw DomainNotFound exception when searchContext is missing even if domains are found" in {
       intercept[DomainNotFound] {
-        domainClient.findRelevantDomains(Some("iamnotarealdomain.wat"), Some(Set("dylan.demo.socrata.com")), None, None)
+        domainClient.findSearchableDomains(Some("iamnotarealdomain.wat"), Some(Set("dylan.demo.socrata.com")), None, None)
       }
     }
 
     "not throw DomainNotFound exception when searchContext is present" in {
       noException should be thrownBy {
-        domainClient.findRelevantDomains(Some("dylan.demo.socrata.com"), None, None, None)
+        domainClient.findSearchableDomains(Some("dylan.demo.socrata.com"), None, None, None)
       }
     }
 
     "not throw DomainNotFound exception when domains are missing" in {
       noException should be thrownBy {
-        domainClient.findRelevantDomains(None, Some(Set("iamnotarealdomain.wat")), None, None)
+        domainClient.findSearchableDomains(None, Some(Set("iamnotarealdomain.wat")), None, None)
       }
     }
   }

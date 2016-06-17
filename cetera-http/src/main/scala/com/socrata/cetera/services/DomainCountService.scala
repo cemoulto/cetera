@@ -50,8 +50,9 @@ class DomainCountService(domainClient: BaseDomainClient) {
         throw new IllegalArgumentException(s"Invalid query parameters: $msg")
 
       case Right(params) =>
-        val (searchContext, queryDomains, domainSearchTime, setCookies) =
-          domainClient.findRelevantDomains(params.searchContext, params.domains, cookie, requestId)
+        val (domainSet, domainSearchTime, setCookies) =
+          domainClient.findSearchableDomains(params.searchParamSet.searchContext, params.searchParamSet.domains,
+            true, cookie, requestId)
 
         val search = domainClient.buildCountRequest(queryDomains, searchContext)
         logger.info(LogHelper.formatEsRequest(search))

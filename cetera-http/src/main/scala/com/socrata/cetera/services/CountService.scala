@@ -11,8 +11,8 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import org.slf4j.LoggerFactory
-
 import com.socrata.cetera._
+import com.socrata.cetera.handlers.VisibilityParamSet
 import com.socrata.cetera.search.{BaseDocumentClient, BaseDomainClient, DomainNotFound}
 import com.socrata.cetera.types._
 import com.socrata.cetera.util.JsonResponses.jsonError
@@ -57,22 +57,13 @@ class CountService(documentClient: BaseDocumentClient, domainClient: BaseDomainC
         throw new IllegalArgumentException(s"Invalid query parameters: $msg")
 
       case Right(params) =>
-        val (searchContext, queryDomains, domainSearchTime, setCookies) =
-          domainClient.findRelevantDomains(params.searchContext, params.domains, cookie, requestId)
+        val (domainSet, domainSearchTime, setCookies) =
+          domainClient.findSearchableDomains(params.searchParamSet.searchContext, params.searchParamSet.domains,
+            true, cookie, requestId)
 
-        val search = documentClient.buildCountRequest(
-          field,
-          params.searchQuery,
-          queryDomains,
-          params.domainMetadata,
-          searchContext,
-          params.categories,
-          params.tags,
-          params.datatypes,
-          params.user,
-          params.attribution,
-          params.parentDatasetId
-        )
+        // TODO: need approval logic somewhere.
+        val visibilityParamSet = VisibilityParamSet(Some("approved"), Some("approved"), Some("approved"))
+        val search = documentClient.buildCountRequest(field, params.searchParamSet, visibilityParamSet, domainSet)
         logger.info(LogHelper.formatEsRequest(search))
 
         val res = search.execute.actionGet

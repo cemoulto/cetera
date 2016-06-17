@@ -3,12 +3,12 @@ package com.socrata.cetera.search
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.io.JsonReader
+import com.socrata.cetera.handlers.{PagingParamSet, RelevanceParamSet, SearchParamSet}
 import org.elasticsearch.action.search.SearchType.COUNT
 import org.scalatest.{BeforeAndAfterAll, ShouldMatchers, WordSpec}
-
 import com.socrata.cetera.types._
 import com.socrata.cetera.util.{ElasticsearchBootstrap, ValidatedQueryParameters}
-import com.socrata.cetera.{TestHttpClient, TestCoreClient, TestESClient, esDocumentType}
+import com.socrata.cetera.{TestCoreClient, TestESClient, TestHttpClient, esDocumentType}
 
 ///////////////////////////////////////////////////////////////////////////////
 // NOTE: Regarding Brittleness
@@ -53,30 +53,35 @@ class DocumentClientSpec extends WordSpec with ShouldMatchers with BeforeAndAfte
   }
 
   val domainIds = Set(1, 2, 3)
-  val params = ValidatedQueryParameters(
+  val searchParams = SearchParamSet(
     searchQuery = SimpleQuery("search query terms"),
     domains = Some(Set("www.example.com", "test.example.com", "socrata.com")),
-    domainMetadata = None,
     searchContext = None,
+    domainMetadata = None,
     categories = Some(Set("Social Services", "Environment", "Housing & Development")),
     tags = Some(Set("taxi", "art", "clowns")),
+    user = None,
     datatypes = Some(Set("datasets")),
+    parentDatasetId = None,
+    attribution = None
+  )
+  val relevanceParams = RelevanceParamSet(
     fieldBoosts = Map[CeteraFieldType with Boostable, Float](
       TitleFieldType -> 2.2f,
       DescriptionFieldType -> 1.1f
     ),
-    parentDatasetId = None,
     datatypeBoosts = Map.empty,
     domainBoosts = Map.empty[String, Float],
     minShouldMatch = None,
     slop = None,
-    showScore = false,
+    showScore = false
+  )
+  val pagingParams = PagingParamSet(
     offset = 10,
     limit = 20,
     sortOrder = Option("relevance"), // should be the same as None
-    user = None,
-    attribution = None
   )
+  val params = ValidatedQueryParameters(searchParams, relevanceParams, pagingParams)
 
   val shouldMatch = j"""{
     "multi_match": {

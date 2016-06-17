@@ -23,9 +23,9 @@ import org.elasticsearch.search.{SearchHitField, SearchShardTarget}
 import org.scalamock.scalatest.proxy.MockFactory
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.springframework.mock.web.{DelegatingServletInputStream, MockHttpServletResponse}
-
 import com.socrata.cetera._
 import com.socrata.cetera.metrics.BalboaClient
+import com.socrata.cetera.response.Classification
 import com.socrata.cetera.search._
 import com.socrata.cetera.types._
 import com.socrata.cetera.util.Params

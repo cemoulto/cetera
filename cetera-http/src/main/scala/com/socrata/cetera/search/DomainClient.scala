@@ -6,23 +6,51 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.slf4j.LoggerFactory
 
 import com.socrata.cetera._
-import com.socrata.cetera.authentication.CoreClient
+import com.socrata.cetera.auth.CoreClient
 import com.socrata.cetera.search.DomainFilters.{domainIdsFilter, isCustomerDomainFilter}
 import com.socrata.cetera.types.{Domain, DomainCnameFieldType}
 import com.socrata.cetera.util.{JsonDecodeException, LogHelper}
 
+case class DomainSet(
+  domains: Set[Domain],
+  searchContext: Option[Domain]
+) {
+
+  def idCnameMap: Map[Int, String] = {
+    val allDomains = domains ++ searchContext
+    allDomains.map(d => d.domainId -> d.domainCname).toMap
+  }
+
+  def cnameIdMap: Map[String, Int] = idCnameMap.map(_.swap)
+
+  def domainIdBoosts(domainBoosts: Map[String, Float]): Map[Int, Float] = {
+    val idMap = cnameIdMap
+    domainBoosts.flatMap { case (cname: String, weight: Float) =>
+      idMap.get(cname).map(id => id -> weight)
+    }
+  }
+
+  def calculateIdsAndModRAStatuses: (Set[Int], Set[Int], Set[Int], Set[Int]) = {
+    val ids = domains.map(_.domainId)
+    val mod = domains.collect { case d: Domain if d.moderationEnabled => d.domainId }
+    val unmod = domains.collect { case d: Domain if !d.moderationEnabled => d.domainId }
+    val raOff = domains.collect { case d: Domain if !d.routingApprovalEnabled => d.domainId }
+    (ids, mod, unmod, raOff)
+  }
+}
+
 trait BaseDomainClient {
   def fetch(id: Int): Option[Domain]
 
-  def findRelevantDomains(searchContextCname: Option[String],
-                          domainCnames: Option[Set[String]],
-                          cookie: Option[String],
-                          requestId: Option[String])
-  : (Option[Domain], Set[Domain], Long, Seq[String])
+  def findSearchableDomains(
+      searchContextCname: Option[String],
+      domainCnames: Option[Set[String]],
+      filterOutLockedDomains: Boolean,
+      cookie: Option[String],
+      requestId: Option[String])
+    : (DomainSet, Long, Seq[String])
 
-  def calculateIdsAndModRAStatuses(domains: Set[Domain]): (Set[Int], Set[Int], Set[Int], Set[Int])
-
-  def buildCountRequest(domains: Set[Domain], searchContext: Option[Domain]): SearchRequestBuilder
+  def buildCountRequest(domainSet: DomainSet): SearchRequestBuilder
 }
 
 class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexAliasName: String)
@@ -105,13 +133,9 @@ class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexA
 
   // if domain cname filter is provided limit to that scope, otherwise default to publicly visible domains
   // also looks up the search context and throws if it cannot be found
-  def findRelevantDomains(
-      searchContextCname: Option[String],
-      domainCnames: Option[Set[String]],
-      cookie: Option[String],
-      requestId: Option[String])
-    : (Option[Domain], Set[Domain], Long, Seq[String]) = {
-
+  // If lock-down is a concern, use the 'findSearchableDomains' method in leui of this one.
+  def findDomains(searchContextCname: Option[String], domainCnames: Option[Set[String]])
+  : (Option[Domain], Set[Domain], Long) = {
     // We want to fetch all relevant domains (search context and relevant domains) in a single query
     // NOTE: the searchContext may be present as both the context and in the relevant domains
     val (foundDomains, timings) = domainCnames match {
@@ -119,7 +143,7 @@ class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexA
       case None => customerDomainSearch
     }
     val searchContextDomain = searchContextCname.flatMap(cname => foundDomains.find(_.domainCname == cname))
-    val relevantDomains = domainCnames match {
+    val domains = domainCnames match {
       case Some(cnames) => foundDomains.filter(d => cnames.contains(d.domainCname))
       case None => foundDomains
     }
@@ -127,11 +151,26 @@ class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexA
     // If a searchContext is specified and we can't find it, we have to bail
     searchContextCname.foreach(c => if (searchContextDomain.isEmpty) throw new DomainNotFound(c))
 
-    // Remove domains that are locked domain and should be hidden from the user
-    val (viewableSearchContext, viewableDomains, setCookies) =
-      removeLockedDomainsForbiddenToUser(searchContextDomain, relevantDomains, cookie, requestId)
+    (searchContextDomain, domains, timings)
+  }
 
-    (viewableSearchContext, viewableDomains, timings, setCookies)
+  def findSearchableDomains(
+      searchContextCname: Option[String],
+      domainCnames: Option[Set[String]],
+      filterOutLockedDomains: Boolean,
+      cookie: Option[String],
+      requestId: Option[String])
+    : (DomainSet, Long, Seq[String]) = {
+
+    val (searchContextDomain, domains, timings) = findDomains(searchContextCname, domainCnames)
+
+    if (filterOutLockedDomains) {
+      val (viewableSearchContext, viewableDomains, setCookies) =
+        removeLockedDomainsForbiddenToUser(searchContextDomain, domains, cookie, requestId)
+      (DomainSet(viewableDomains, viewableSearchContext), timings, setCookies)
+    } else {
+      (DomainSet(domains, searchContextDomain), timings, Seq.empty[String])
+    }
   }
 
   // TODO: handle unlimited domain count with aggregation or scan+scroll query
@@ -156,27 +195,15 @@ class DomainClient(esClient: ElasticSearchClient, coreClient: CoreClient, indexA
     (domains, timing)
   }
 
-  // (pre-)calculate domain moderation and R+A status
-  def calculateIdsAndModRAStatuses(domains: Set[Domain]): (Set[Int], Set[Int], Set[Int], Set[Int]) = {
-    val ids = domains.map(_.domainId)
-    val mod = domains.collect { case d: Domain if d.moderationEnabled => d.domainId }
-    val unmod = domains.collect { case d: Domain if !d.moderationEnabled => d.domainId }
-    val raOff = domains.collect { case d: Domain if !d.routingApprovalEnabled => d.domainId }
-    (ids, mod, unmod, raOff)
-  }
-
   // NOTE: I do not currently honor counting according to parameters
-  def buildCountRequest(
-      domains: Set[Domain],
-      searchContext: Option[Domain])
-    : SearchRequestBuilder = {
+  def buildCountRequest(domainSet: DomainSet): SearchRequestBuilder = {
 
-    val contextModerated = searchContext.exists(_.moderationEnabled)
+    val contextModerated = domainSet.searchContext.exists(_.moderationEnabled)
 
     val (domainIds,
       moderatedDomainIds,
       unmoderatedDomainIds,
-      routingApprovalDisabledDomainIds) = calculateIdsAndModRAStatuses(domains)
+      routingApprovalDisabledDomainIds) = domainSet.calculateIdsAndModRAStatuses
 
     val domainFilter = domainIdsFilter(domainIds)
 

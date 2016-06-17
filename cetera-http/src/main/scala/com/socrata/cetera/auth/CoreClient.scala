@@ -1,4 +1,4 @@
-package com.socrata.cetera.authentication
+package com.socrata.cetera.auth
 
 import scala.util.control.NonFatal
 

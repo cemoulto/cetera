@@ -73,14 +73,10 @@ object Sorts {
   )
 
   // First pass logic is very simple. query >> categories >> tags >> default
-  def chooseSort(
-      searchQuery: QueryType,
-      searchContext: Option[Domain],
-      categories: Option[Set[String]],
-      tags: Option[Set[String]])
+  def chooseSort(searchFilterSet: SearchFilterSet)
     : SortBuilder = {
-
-    (searchQuery, searchContext, categories, tags) match {
+    val s = searchFilterSet
+    (s.searchQuery, s.searchContext, s.categories, s.tags) match {
       // ODN Categories
       case (NoQuery, None, Some(cats), _) =>
         buildAverageScoreSort(

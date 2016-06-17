@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import com.rojoma.simplearm.v2.Resource
 import com.socrata.http.client.HttpClientHttpClient
 
-import com.socrata.cetera.authentication.CoreClient
+import com.socrata.cetera.auth.CoreClient
 
 class TestCoreClient(httpClient: TestHttpClient, port: Int) extends
   CoreClient(httpClient.client, "localhost", port, 2000, None)
