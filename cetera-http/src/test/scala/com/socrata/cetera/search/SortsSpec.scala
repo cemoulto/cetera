@@ -25,7 +25,8 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
       val field = "field.in.our.documents"
       val expectedAsString = s"""
         |"${field}"{
-        |  "order" : "asc"
+        |  "order" : "asc",
+        |  "missing" : "_last"
         |}""".stripMargin
 
       val actual = Sorts.sortFieldAsc(field)
@@ -39,7 +40,8 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
       val field = "another_field.another_field_total"
       val expectedAsString = s"""
         |"${field}"{
-        |  "order" : "desc"
+        |  "order" : "desc",
+        |  "missing" : "_last"
         |}""".stripMargin
 
       val actual = Sorts.sortFieldDesc(field)
@@ -58,6 +60,7 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
       val expectedAsString = s"""
          |"${fieldName}"{
          |  "order" : "desc",
+         |  "missing" : "_last",
          |  "mode" : "avg",
          |  "nested_filter" : {
          |    "terms" : {
@@ -120,6 +123,7 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
       val expectedAsString = s"""
         |"animl_annotations.categories.score"{
         |  "order" : "desc",
+        |  "missing" : "_last",
         |  "mode" : "avg",
         |  "nested_filter" : {
         |    "terms" : {
@@ -144,6 +148,7 @@ class SortsSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
       val expectedAsString = s"""
         |"animl_annotations.tags.score"{
         |  "order" : "desc",
+        |  "missing" : "_last",
         |  "mode" : "avg",
         |  "nested_filter" : {
         |    "terms" : {
