@@ -100,6 +100,67 @@ class SearchServiceSpec extends FunSuiteLike with Matchers with BeforeAndAfterAl
     new SearchResponse(internalSearchResponse, "", 15, 15, 4, Array[ShardSearchFailure]())
   }
 
+  val badSearchResponse = {
+    val shardTarget = new SearchShardTarget("1", "catalog", 1)
+    val score = 0.54321f
+
+    val badResource = "\"badResource\":{\"name\": \"Just A Test\", \"I'm\":\"NOT OK\",\"you'll\":\"never know\"}"
+    val goodResource = "\"resource\":{\"name\": \"Just A Test\", \"I'm\":\"OK\",\"you're\":\"so-so\"}"
+
+    val datasetSocrataId = "\"socrata_id\":{\"domain_id\":[0],\"dataset_id\":\"four-four\"}"
+    val badDatasetSocrataId = "\"socrata_id\":{\"domain_id\":\"i am a string\",\"dataset_id\":\"four-four\"}"
+    val pageSocrataId = "\"socrata_id\":{\"domain_id\":[1,2],\"dataset_id\":\"four-four\",\"page_id\":\"fore-fore\"}"
+
+    val datasetDatatype = "\"datatype\":\"dataset\""
+    val datasetViewtype = "\"viewtype\":\"\""
+    val pageDatatype = "\"datatype\":\"datalens\""
+    val pageViewtype = "\"viewtype\":\"\""
+
+    val badResourceDatasetSource = new BytesArray("{" +
+      List(badResource, datasetDatatype, datasetViewtype, datasetSocrataId).mkString(",") +
+      "}")
+
+    val badSocrataIdDatasetSource = new BytesArray("{" +
+      List(goodResource, datasetDatatype, datasetViewtype, badDatasetSocrataId).mkString(",")
+      + "}")
+
+    val pageSource = new BytesArray("{" +
+      List(goodResource, pageDatatype, pageViewtype, pageSocrataId).mkString(",")
+      + "}")
+
+    // A result missing the resource field should get filtered (a bogus doc is often missing expected fields)
+    val badResourceDatasetHit = new InternalSearchHit(1, "46_3yu6-fka7", new StringText("dataset"), emptySearchHitMap)
+    badResourceDatasetHit.shardTarget(shardTarget)
+    badResourceDatasetHit.sourceRef(badResourceDatasetSource)
+    badResourceDatasetHit.score(score)
+
+    // A result with corrupted (unparseable) field should also get skipped (instead of raising)
+    val badSocrataIdDatasetHit = new InternalSearchHit(1, "46_3yu6-fka7", new StringText("dataset"), emptySearchHitMap)
+    badSocrataIdDatasetHit.shardTarget(shardTarget)
+    badSocrataIdDatasetHit.sourceRef(badSocrataIdDatasetSource)
+    badSocrataIdDatasetHit.score(score)
+
+    val updateFreq: SearchHitField = new InternalSearchHitField("update_freq", List.empty[Object].asJava)
+    val popularity: SearchHitField = new InternalSearchHitField("popularity", List.empty[Object].asJava)
+
+    val pageHit = new InternalSearchHit(1, "64_6uy3-7akf", new StringText("page"), emptySearchHitMap)
+    pageHit.shardTarget(shardTarget)
+    pageHit.sourceRef(pageSource)
+    pageHit.score(score)
+
+    val hits = Array[InternalSearchHit](badResourceDatasetHit, badSocrataIdDatasetHit, pageHit)
+    val internalSearchHits = new InternalSearchHits(hits, 3037, 1.0f)
+    val internalSearchResponse = new InternalSearchResponse(
+      internalSearchHits,
+      new InternalFacets(List[Facet]().asJava),
+      new InternalAggregations(List[InternalAggregation]().asJava),
+      new Suggest(),
+      false,
+      false)
+
+    new SearchResponse(internalSearchResponse, "", 15, 15, 4, Array[ShardSearchFailure]())
+  }
+
   test("extract and format resources from SearchResponse") {
     val domain = Domain(
       1,
@@ -139,6 +200,21 @@ class SearchServiceSpec extends FunSuiteLike with Matchers with BeforeAndAfterAl
       case Some(domain) => domain should be (JString("second-socrata.com"))
       case None => fail("metadata.domain field missing")
     }
+  }
+
+  test("SearchResponse does not throw on bad documents it just ignores them") {
+    val domain = Domain(1, "tempuri.org", Some("Title"), Some("Temp Org"),
+                        isCustomerDomain = true, moderationEnabled = false,
+                        routingApprovalEnabled = false, lockedDown = false, apiLockedDown = false)
+
+    val expectedResource = j"""{ "name" : "Just A Test", "I'm" : "OK", "you're" : "so-so" }"""
+    val searchResults = service.format(domainCnames, showScore = false, badSearchResponse)
+
+    val results = searchResults.results
+    results.size should be (1)
+
+    val pageResponse = results(0)
+    pageResponse.resource should be (j"""${expectedResource}""")
   }
 
   test("build base urls and pretty seo urls") {

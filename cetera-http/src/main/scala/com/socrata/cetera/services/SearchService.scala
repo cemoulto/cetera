@@ -126,7 +126,7 @@ class SearchService(elasticSearchClient: BaseDocumentClient,
     }.toMap ++ domainIdCnames
   }
 
-  // WARN: This will raise if a single document has a single missing path!
+  // WARN: This will no longer raise if a single document is malformed in some way
   def format(domainIdCnames: Map[Int, String],
              showScore: Boolean,
              searchResponse: SearchResponse): SearchResults[SearchResult] = {
