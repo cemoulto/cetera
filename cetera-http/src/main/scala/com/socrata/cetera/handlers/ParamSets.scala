@@ -14,6 +14,7 @@ case class SearchParamSet(
   attribution: Option[String],
   parentDatasetId: Option[String])
 
+//TODO  : replace searchContext with domain_cataegories and domain_tags.
 case class VisibilityParamSet(
   viewApproval: Option[String],   // approved, pending, rejected
   datasetApproval: Option[String],

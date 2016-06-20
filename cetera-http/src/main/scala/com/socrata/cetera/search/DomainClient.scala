@@ -30,6 +30,7 @@ case class DomainSet(
     }
   }
 
+    // TODO: add in logic to build up vis filters
   def calculateIdsAndModRAStatuses: (Set[Int], Set[Int], Set[Int], Set[Int]) = {
     val ids = domains.map(_.domainId)
     val mod = domains.collect { case d: Domain if d.moderationEnabled => d.domainId }
