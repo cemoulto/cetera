@@ -52,7 +52,7 @@ class UserClient(esClient: ElasticSearchClient, indexAliasName: String) extends 
         case Right(u) => Some(u)
         case Left(err) =>
           logger.error(err.english)
-          throw new JsonDecodeException(err)
+          None // This used to throw new JsonDecodeException(err) but we need resilience
       }
     }.toSet
 
