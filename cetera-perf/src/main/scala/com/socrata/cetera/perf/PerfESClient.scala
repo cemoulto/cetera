@@ -1,4 +1,4 @@
-package com.socrata.cetera
+package com.socrata.cetera.perf
 
 import java.io.File
 import java.nio.file.Files
@@ -10,6 +10,8 @@ import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.node.NodeBuilder._
 import org.joda.time.DateTime
 
+import com.socrata.cetera.esDomainType
+import com.socrata.cetera.esDocumentType
 import com.socrata.cetera.search._
 import com.socrata.cetera.types._
 import com.socrata.cetera.util.ElasticsearchBootstrap

@@ -1,4 +1,4 @@
-package com.socrata.cetera
+package com.socrata.cetera.perf
 
 import java.util.concurrent.{Executors, TimeUnit}
 import scala.collection.JavaConverters._
