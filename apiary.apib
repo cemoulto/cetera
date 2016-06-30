@@ -204,6 +204,12 @@ The search service currently indexes datasets, visualizations, and other assets 
     + only (optional, list[string], `datasets`) ... Limit results to a particular resource type (`datasets`, `charts`, `maps`, `datalenses`, `stories`, `files`, `hrefs`). If not present searches all types
 
 
+## Derived views [/catalog/v1{?derived_from}]
+The search service maintains any relationship present between a dataset asset and view-type assets that derive from it. The caller can restrict the results to those that derive from a particular dataset.
+
++ Parameters
+    + derived_from (optional, string, `dk8m-pdjf`) ... Limit results to assets derived from dataset by id.
+
 ### Resource search API [GET]
 
 + Response 200
@@ -222,7 +228,7 @@ By default (not yet implemented), the search service will only return result dat
 
     [Search Endpoint][]
 
-## Complete Search API [/catalog/v1{?domains,search_context,categories,tags,q,offset,limit,only,include_internal_metadata,highlight}]
+## Complete Search API [/catalog/v1{?domains,search_context,categories,tags,q,offset,limit,only,derived_from,include_internal_metadata,highlight}]
 The full search API is detailed here, with some additional options such as `tags` and `highlight` which are not yet implemented.
 
 + Parameters
@@ -234,6 +240,7 @@ The full search API is detailed here, with some additional options such as `tags
     + offset (optional, number, `23`) ... Initial starting point for paging (0 by default)
     + limit (optional, number, `1000`) ... Number of results to return (100 default/max)
     + only (optional, list[string], `datasets`) ... Limit results to a particular resource type (`datasets`, `charts`, `maps`, `datalenses`, `stories`, `files`, `hrefs`). If not present searches all types
+    + derived_from (optional, string, `dk8m-pdjf`) ... Limit results to assets derived from dataset by id.
     + include_internal_metadata (optional, boolean, `true`) ... Results return with additional rendering metadata useful to frontend. If not present, assumed false
     + highlight (optional, boolean, `true`) ... Include highlighting information
 
